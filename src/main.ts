@@ -4,12 +4,14 @@ import App from './App.vue'
 import router from './router'
 import './style.css'
 
-// GitHub Pages SPA fallback: restore the original URL from the ?p= param
-// injected by 404.html before the router initializes.
-const redirect = new URLSearchParams(window.location.search).get('p')
-if (redirect) {
-  const clean = redirect + window.location.search.replace(/[?&]p=[^&]*/, '') + window.location.hash
-  window.history.replaceState(null, '', clean)
+// GitHub Pages SPA fallback: 404.html stashes the originally requested deep-link
+// in sessionStorage and redirects to the base path. Restore that URL before the
+// router mounts so vue-router resolves the correct route (for project pages the
+// path already includes the /access-log base segment).
+const spaRedirect = sessionStorage.getItem('spa-redirect')
+if (spaRedirect) {
+  sessionStorage.removeItem('spa-redirect')
+  window.history.replaceState(null, '', spaRedirect)
 }
 
 createApp(App).use(createPinia()).use(router).mount('#app')
