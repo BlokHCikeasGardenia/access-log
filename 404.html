@@ -6,20 +6,20 @@
   </head>
   <body>
     <script>
-      // SPA fallback for GitHub Pages (history mode).
-      // When a route like /residents is requested directly, GitHub Pages
-      // serves this 404.html. We redirect to the root with the original
-      // path stored in the ?p= query parameter, then main.ts restores
-      // the URL so Vue Router picks up the correct route.
+      // SPA fallback for GitHub Pages (history mode) on a project sub-path.
+      // This page is served for ANY deep link under /access-log/ (e.g. /access-log/login).
+      // We stash the original full URL in sessionStorage, then redirect back to
+      // the base path (root of this project page). main.ts reads the stashed URL
+      // and restores it before the router mounts, so Vue Router picks up the route.
+      var SEGMENTS_TO_KEEP = 1; // base path '/access-log' has one segment
       var l = window.location;
-      var pathSegmentsToKeep = 0;
-      l.replace(
-        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
-        l.pathname.split('/').slice(0, pathSegmentsToKeep + 1).join('/') + '/?p=/' +
-        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/') +
-        (l.search ? l.search : '') +
-        (l.hash ? l.hash : '')
-      );
+      var base = l.pathname.split('/').slice(0, SEGMENTS_TO_KEEP + 1).join('/') + '/';
+      try {
+        sessionStorage.setItem('spa-redirect', l.pathname + l.search + l.hash);
+      } catch (e) {
+        // Ignore (e.g. private browsing with storage blocked); fall through to ROOT.
+      }
+      l.replace(l.origin + base);
     </script>
   </body>
 </html>
