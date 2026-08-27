@@ -118,7 +118,7 @@ onMounted(load)
   <div class="max-w-6xl mx-auto px-4 py-8">
     <div class="flex items-center justify-between mb-6">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">Hubungan Penghuni &amp; Kartu</h1>
+        <h1 class="text-2xl font-bold text-slate-800">Pairing Penghuni &amp; Kartu</h1>
         <p class="text-sm text-slate-500">{{ groups.length }} penghuni · {{ totalCards }} kartu terpasang · {{ unassigned.length }} kartu belum terpasang.</p>
       </div>
     </div>

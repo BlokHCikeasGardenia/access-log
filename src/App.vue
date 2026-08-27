@@ -26,7 +26,7 @@ async function handleLogout() {
           <RouterLink to="/" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Beranda</RouterLink>
           <RouterLink to="/residents" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Penghuni</RouterLink>
           <RouterLink to="/cards" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Kartu</RouterLink>
-          <RouterLink to="/relationships" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Hubungan</RouterLink>
+          <RouterLink to="/relationships" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Pairing</RouterLink>
         </nav>
         <div class="ml-auto flex items-center gap-3">
           <span class="text-xs text-slate-500 truncate max-w-[200px]">{{ auth.user?.email }}</span>
