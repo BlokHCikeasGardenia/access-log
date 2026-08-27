@@ -22,9 +22,46 @@ berbicara langsung ke Supabase (Auth + Postgres) dari browser — tanpa backend 
 5. `npm run dev`
 
 ## Build & deploy (GitHub Pages)
-- `npm run build` → hasil di `dist/` (base path relatif `./` agar cocok di sub-path).
-- `npm run deploy` (butuh `gh-pages`) untuk publish ke branch `gh-pages`.
+- `npm run build` → hasil di `dist/`. Base path (prefix aset & router) otomatis mengikuti
+  `VITE_BASE_PATH` (lihat bagian *Routing & Base Path* di bawah). Di mode *production*
+  nilai ini diambil dari `.env.production`.
+- `npm run deploy` (butuh `gh-pages`) untuk publish isi `dist/` ke branch `gh-pages`.
+  Skrip ini otomatis menjalankan `npm run build` dahulu (via `predeploy`).
 - Pastikan `VITE_BASE_PATH` sesuai: `/` untuk user/org pages, `/<repo>/` untuk project pages.
+
+## Routing & Base Path (GitHub Pages SPA)
+Aplikasi ini memakai **vue-router history mode**, jadi URL-nya bersih tanpa `#`
+(mis. `/login`, `/residents`). Karena host statis seperti GitHub Pages tidak punya
+server rewrite, mengunjungi/merefresh route secara langsung akan memicu halaman 404
+dari GitHub. Untuk itu ada **SPA fallback** yang sudah diatur:
+
+- Meninggalkan `404.html` di root, jadi GitHub Pages menserve `404.html` untuk path
+  yang tidak ada sebagai file fisik.
+- `404.html` men-stash URL asli ke `sessionStorage` (kunci `spa-redirect`), lalu
+  redirect ke root project page (`/access-log/`).
+- `src/main.ts` membaca `spa-redirect` tersebut dan memulihkan URL dengan
+  `history.replaceState` **sebelum** router mount, sehingga Vue Router menampilkan
+  route yang benar.
+- `SEGMENTS_TO_KEEP` di `404.html` harus sama dengan jumlah segmen base path
+  (mis. `/access-log` = **1**). Jika repo/base path berubah, perbarui angka ini.
+
+### Perilaku status HTTP
+Harap dicatat: karena deep link `/path` tidak ada sebagai file fisik, GitHub Pages
+balas **status 404** di level HTTP — tapi body yang dikirim adalah `404.html` kita
+(bukan halaman 404 default). Di browser fallback ini berjalan transparan: user tetap
+diarahkan ke halaman yang benar. Jadi "404" di *DevTools Network* untuk route dalam
+skenario ini adalah **normal** di GitHub Pages dan bukan karena bug.
+
+### Contoh base path
+| Jenis halaman | URL | `VITE_BASE_PATH` | `SEGMENTS_TO_KEEP` |
+|---|---|---|---|
+| User/Org page | `https://user.github.io/` | `/` | 0 |
+| Project page | `https://user.github.io/access-log/` | `/access-log/` | 1 |
+
+Saat develop lokal dengan `npm run dev`, `VITE_BASE_PATH` dari `.env` (biasanya bernilai
+`/`) dipakai sebagai base, sehingga app berjalan di root dan deep link tidak perlu
+prefix. Nilai `/access-log/` hanya berpengaruh saat `npm run build` karena diambil
+dari `.env.production` yang menimpa `.env`.
 
 ## Format upload
 - **Penghuni** (TAB-separated, header otomatis dilewati): `Blok<TAB>Nama`
