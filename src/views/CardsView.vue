@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { parseCards } from '@/lib/parse'
 import { importCardsSample } from '@/lib/seed'
@@ -34,6 +34,16 @@ const labelB = ref('')
 const uploadText = ref('')
 const uploadPreview = ref<{ ok: number; errors: string[] } | null>(null)
 const saving = ref(false)
+
+/** Returns true when the given (trimmed) UID already exists in the loaded cards. */
+function uidExists(value: string): boolean {
+  const target = value.trim()
+  if (!target) return false
+  return cards.value.some((c) => c.uid === target)
+}
+
+/** Live hint for the manual add form — true while the typed UID already exists. */
+const uidDuplicate = computed(() => uidExists(uid.value))
 
 const showEdit = ref(false)
 const editTarget = ref<Card | null>(null)
@@ -78,12 +88,27 @@ function openAdd() {
 
 function previewUpload() {
   const { rows, errors } = parseCards(uploadText.value)
-  uploadPreview.value = { ok: rows.length, errors }
+  // Flag rows whose UID already exists in the database so the user sees the real
+  // number of NEW cards before importing. Duplicates in-file are already caught
+  // inside parseCards.
+  const dbErrors: string[] = []
+  const ok = rows.filter((r) => {
+    if (uidExists(r.uid)) {
+      dbErrors.push(`UID ${r.uid} sudah ada di database, dilewati.`)
+      return false
+    }
+    return true
+  }).length
+  uploadPreview.value = { ok, errors: [...errors, ...dbErrors] }
 }
 
 async function submitManual() {
   if (!uid.value.trim()) {
     notify('UID wajib diisi.', 'error')
+    return
+  }
+  if (uidExists(uid.value)) {
+    notify('UID sudah digunakan (duplikat). Gunakan UID lain.', 'error')
     return
   }
   saving.value = true
@@ -258,6 +283,7 @@ onMounted(load)
         <div>
           <label class="block text-sm font-medium mb-1">UID Kartu</label>
           <input v-model="uid" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="56018067" />
+          <p v-if="uidDuplicate" class="mt-1 text-xs text-rose-600">UID ini sudah terdaftar — gunakan UID lain.</p>
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">Label A</label>
@@ -283,7 +309,7 @@ onMounted(load)
 
       <template #footer>
         <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="showAdd = false">Batal</button>
-        <button v-if="addTab === 'manual'" class="text-sm px-4 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="saving" @click="submitManual">
+        <button v-if="addTab === 'manual'" class="text-sm px-4 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="saving || uidDuplicate" @click="submitManual">
           {{ saving ? 'Menyimpan…' : 'Simpan' }}
         </button>
         <button v-else class="text-sm px-4 py-1.5 rounded bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50" :disabled="saving" @click="submitUpload">
