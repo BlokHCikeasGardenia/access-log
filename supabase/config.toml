@@ -1,0 +1,4 @@
+project_id = "log-akses"
+
+[functions.log-gate]
+verify_jwt = true

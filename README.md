@@ -6,10 +6,38 @@ berbicara langsung ke Supabase (Auth + Postgres) dari browser — tanpa backend 
 
 ## Fitur
 - **Auth**: login email/password via Supabase Auth. Session persisten.
+- **Log In/Out Warga** (Beranda): tabel riwayat keluar/masuk gerbang dari API eksternal
+  `cek.goepoet.com`, menampilkan tanggal/jam, arah, ID kartu, dan nama penghuni
+  (dicocokkan dari tabel `cards`/`residents` di Supabase).
 - **Penghuni**: tabel blok / nama / status; tambah manual atau upload `.txt` (TAB-separated).
 - **Kartu**: master kartu (UID, Label A, Label B); tambah manual atau upload `.txt` (pipe-separated).
 - **Hubungan**: pasangkan kartu ke penghuni via combobox (cari berdasarkan Label B),
   ubah status kartu (Aktif/Rusak/Hilang), lepas kartu (kembali ke pool).
+
+## Log In/Out Warga (Supabase Edge Function)
+
+Halaman Beranda menampilkan riwayat keluar/masuk warga. Data aslinya berasal dari
+API eksternal `https://cek.goepoet.com/log_gate.php` yang **tidak mengirim header CORS**,
+sehingga tidak bisa dipanggil langsung dari browser (GitHub Pages). Solusinya adalah
+**Supabase Edge Function** (`supabase/functions/log-gate`) yang memanggil API tersebut
+di sisi server lalu meneruskan JSON-nya ke browser dengan header CORS yang benar.
+
+### Deploy Edge Function
+1. Pastikan Supabase CLI terpasang: `supabase --version`.
+2. Login & hubungkan ke project:
+   ```
+   supabase login
+   supabase link --project-ref <project-ref>
+   ```
+3. Deploy fungsi (terdaftar dengan `verify_jwt = true`, hanya user login yang boleh panggil):
+   ```
+   supabase functions deploy log-gate
+   ```
+4. Salin URL hasil deploy (`https://<project-ref>.functions.supabase.co/log-gate`)
+   ke `.env` sebagai `VITE_SUPABASE_EDGE_LOG_GATE` (dan ke `.env.example`).
+
+> Catatan: fungsi memvalidasi parameter `tanggal_awal` & `tanggal_akhir` lalu meneruskannya
+> ke API eksternal. Deploy ulang fungsi jika datanya berubah di sisi API.
 
 ## Setup lokal
 1. `npm install`
