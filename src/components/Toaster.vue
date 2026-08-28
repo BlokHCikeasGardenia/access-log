@@ -4,11 +4,11 @@ import { toasts, dismiss } from '@/lib/toast'
 
 <template>
   <Teleport to="body">
-    <div class="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 w-80 max-w-[90vw]">
+    <div class="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-[60] flex flex-col gap-2">
       <div
         v-for="t in toasts"
         :key="t.id"
-        class="rounded shadow-lg px-4 py-3 text-sm text-white cursor-pointer"
+        class="rounded shadow-lg px-4 py-3 text-sm text-white cursor-pointer min-h-[44px]"
         :class="{
           'bg-emerald-600': t.kind === 'success',
           'bg-rose-600': t.kind === 'error',

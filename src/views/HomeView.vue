@@ -173,24 +173,24 @@ onMounted(async () => {
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-8">
-    <div class="flex items-start justify-between mb-6 gap-4 flex-wrap">
+    <div class="flex flex-col md:flex-row md:items-start justify-between mb-6 gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-800 mb-1">Log In/Out Warga</h1>
         <p class="text-sm text-slate-500">Riwayat keluar masuk gerbang.</p>
       </div>
     </div>
 
-    <div class="flex flex-wrap items-end gap-3 mb-6">
-      <div>
+    <div class="flex flex-col md:flex-row md:items-end gap-3 mb-6">
+      <div class="flex-1">
         <label class="block text-sm font-medium text-slate-600 mb-1">Tanggal Awal</label>
-        <input v-model="tanggalAwal" type="date" class="rounded border border-slate-300 px-3 py-2 text-sm" />
+        <input v-model="tanggalAwal" type="date" class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]" />
       </div>
-      <div>
+      <div class="flex-1">
         <label class="block text-sm font-medium text-slate-600 mb-1">Tanggal Akhir</label>
-        <input v-model="tanggalAkhir" type="date" class="rounded border border-slate-300 px-3 py-2 text-sm" />
+        <input v-model="tanggalAkhir" type="date" class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]" />
       </div>
       <button
-        class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+        class="w-full md:w-auto bg-indigo-600 text-white rounded px-4 py-2.5 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 min-h-[44px]"
         :disabled="loading"
         @click="loadLogs"
       >
@@ -199,22 +199,22 @@ onMounted(async () => {
     </div>
 
     <!-- Search / filter / per-page controls (shown only when there are logs). -->
-    <div v-if="logs.length" class="flex flex-wrap items-end gap-4 mb-4">
-      <div class="flex-1 min-w-56">
+    <div v-if="logs.length" class="flex flex-col md:flex-row md:items-end gap-3 mb-4">
+      <div class="flex-1">
         <label class="block text-sm font-medium text-slate-600 mb-1">Cari</label>
-        <input v-model="searchInput" type="text" placeholder="UID, nama, atau tanggal…" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+        <input v-model="searchInput" type="text" placeholder="UID, nama, atau tanggal…" class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]" />
       </div>
-      <div>
+      <div class="w-full md:w-40">
         <label class="block text-sm font-medium text-slate-600 mb-1">Arah</label>
-        <select v-model="filterArah" class="rounded border border-slate-300 px-3 py-2 text-sm">
+        <select v-model="filterArah" class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]">
           <option value="all">Semua</option>
           <option value="IN">Masuk (IN)</option>
           <option value="OUT">Keluar (OUT)</option>
         </select>
       </div>
-      <div class="w-28">
+      <div class="w-full md:w-28">
         <label class="block text-sm font-medium text-slate-600 mb-1">Per halaman</label>
-        <select v-model.number="pageSize" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+        <select v-model.number="pageSize" class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]">
           <option :value="10">10</option>
           <option :value="20">20</option>
           <option :value="50">50</option>
@@ -222,34 +222,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div
-      v-if="filteredLogs.length"
-      class="flex items-center justify-between mb-3 text-sm text-slate-600"
-    >
-      <span>
-        Menampilkan {{ (currentPage - 1) * pageSize + 1 }}–{{
-          Math.min(currentPage * pageSize, filteredLogs.length)
-        }}
-        dari {{ filteredLogs.length }} data
-      </span>
-      <span>
-        Halaman {{ currentPage }} / {{ totalPages }}
-      </span>
-    </div>
-    <div v-else-if="logs.length" class="mb-3 text-sm text-slate-600">
-      0 data (setelah filter)
-    </div>
-
-
-    <div v-if="loading" class="text-slate-500 text-sm">Memuat�</div>
-    <div v-else-if="error" class="bg-rose-50 border border-rose-200 text-rose-700 rounded p-4 text-sm">{{ error }}</div>
-    <div v-else-if="logs.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
-      Belum ada data log pada rentang tanggal ini.
-    </div>
-    <div v-else-if="filteredLogs.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
-      Tidak ada data yang cocup dengan filter pencarian.
-    </div>
-    <div v-else class="bg-white rounded border border-slate-200 overflow-x-auto">
+    <div v-if="logs.length && filteredLogs.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm border-collapse">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
@@ -275,14 +248,42 @@ onMounted(async () => {
       </table>
 
       <!-- Pagination (only when more rows than a single page). -->
-      <div v-if="filteredLogs.length > pageSize" class="flex items-center justify-between p-3 border-t border-slate-200 text-sm">
-        <div class="flex gap-1">
-          <button class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50" :disabled="currentPage === 1" @click="goToPage(1)">Awal</button>
-          <button class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">Prev</button>
-          <button class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">Next</button>
-          <button class="px-3 py-1 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50" :disabled="currentPage === totalPages" @click="goToPage(totalPages)">Akhir</button>
+      <div v-if="filteredLogs.length > pageSize" class="flex flex-col md:flex-row md:items-center justify-between p-3 border-t border-slate-200 text-sm gap-3">
+        <div class="flex flex-wrap gap-2">
+          <button class="px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px]" :disabled="currentPage === 1" @click="goToPage(1)">Awal</button>
+          <button class="px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px]" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">Prev</button>
+          <button class="px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px]" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">Next</button>
+          <button class="px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px]" :disabled="currentPage === totalPages" @click="goToPage(totalPages)">Akhir</button>
         </div>
         <span class="text-slate-600">Halaman {{ currentPage }} / {{ totalPages }}</span>
+      </div>
+    </div>
+
+    <div v-if="logs.length && filteredLogs.length" class="md:hidden space-y-3">
+      <div
+        v-for="log in pagedLogs"
+        :key="log.id"
+        class="bg-white rounded border border-slate-200 p-4"
+        :class="log.arah === 'IN' ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'"
+      >
+        <div class="flex items-center justify-between gap-2 mb-2">
+          <span class="text-sm font-medium text-slate-800">{{ log.tgl }}</span>
+          <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold" :class="log.arah === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">{{ log.arah }}</span>
+        </div>
+        <div class="text-sm text-slate-600 space-y-1">
+          <p class="font-mono text-xs">ID Kartu: {{ log.kartu }}</p>
+          <p>Penghuni: {{ log.warga || '—' }}</p>
+        </div>
+      </div>
+
+      <div v-if="filteredLogs.length > pageSize" class="flex flex-col gap-2 pt-2">
+        <div class="flex gap-2">
+          <button class="flex-1 px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px] text-sm" :disabled="currentPage === 1" @click="goToPage(1)">Awal</button>
+          <button class="flex-1 px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px] text-sm" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">Prev</button>
+          <button class="flex-1 px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px] text-sm" :disabled="currentPage === totalPages" @click="goToPage(currentPage + 1)">Next</button>
+          <button class="flex-1 px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px] text-sm" :disabled="currentPage === totalPages" @click="goToPage(totalPages)">Akhir</button>
+        </div>
+        <span class="text-xs text-center text-slate-600">Halaman {{ currentPage }} / {{ totalPages }}</span>
       </div>
     </div>
   </div>

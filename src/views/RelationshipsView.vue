@@ -127,7 +127,8 @@ onMounted(load)
     <div v-else-if="groups.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
       Belum ada data penghuni. Tambah penghuni terlebih dahulu.
     </div>
-    <div v-else class="bg-white rounded border border-slate-200 overflow-x-auto">
+
+    <div v-if="groups.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
@@ -223,6 +224,75 @@ onMounted(load)
           </template>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="groups.length" class="md:hidden space-y-4">
+      <div v-for="g in groups" :key="g.resident.id" class="bg-white rounded border border-slate-200 p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <span class="font-semibold text-slate-800">{{ g.resident.blok }}</span>
+            <span class="text-sm text-slate-600 ml-2">{{ g.resident.nama }}</span>
+          </div>
+          <button v-if="!adding[g.resident.id]" class="text-sm px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 min-h-[44px]" @click="startAdd(g.resident.id)">+ Tambah Kartu</button>
+        </div>
+
+        <div v-if="g.cards.length === 0 && !adding[g.resident.id]" class="text-xs text-slate-400 italic py-2">belum ada kartu</div>
+
+        <div v-if="adding[g.resident.id]" class="mt-2 space-y-2">
+          <input
+            v-model="query[g.resident.id]"
+            class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]"
+            placeholder="Cari Label B / Label A / UID…"
+            autofocus
+          />
+          <div v-if="filteredUnassigned(g.resident.id).length" class="border border-slate-200 rounded bg-white max-h-40 overflow-auto">
+            <button
+              v-for="c in filteredUnassigned(g.resident.id)"
+              :key="c.id"
+              class="w-full text-left px-3 py-2 hover:bg-slate-100 text-sm flex gap-3"
+              :disabled="saving"
+              @click="assignCard(c, g.resident.id)"
+            >
+              <span class="font-mono">{{ c.uid }}</span>
+              <span class="text-slate-500">A:{{ c.label_a || '—' }}</span>
+              <span class="text-slate-500">B:{{ c.label_b || '—' }}</span>
+            </button>
+          </div>
+          <p v-else class="text-xs text-slate-400">Tidak ada kartu yang cocok.</p>
+          <button class="text-xs text-slate-500 hover:underline" @click="cancelAdd(g.resident.id)">Batal</button>
+        </div>
+
+        <div v-if="g.cards.length" class="mt-2 space-y-2">
+          <div v-for="c in g.cards" :key="c.id" class="border border-slate-100 rounded p-3">
+            <div class="flex items-center justify-between gap-2">
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1">
+                  <span class="font-mono text-sm font-semibold text-slate-800">{{ c.uid }}</span>
+                  <span v-if="editingCard !== c.id" class="inline-block px-2 py-0.5 rounded-full text-xs" :class="{
+                    'bg-emerald-100 text-emerald-700': c.card_status === 'Aktif',
+                    'bg-amber-100 text-amber-700': c.card_status === 'Rusak',
+                    'bg-rose-100 text-rose-700': c.card_status === 'Hilang',
+                  }">{{ c.card_status }}</span>
+                </div>
+                <p class="text-xs text-slate-500">A: {{ c.label_a || '—' }} · B: {{ c.label_b || '—' }}</p>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <template v-if="editingCard === c.id">
+                  <select v-model="editStatus" class="rounded border border-slate-300 px-2 py-1 text-sm min-h-[44px]">
+                    <option v-for="s in CARD_STATUSES" :key="s" :value="s">{{ s }}</option>
+                  </select>
+                  <button class="text-sm px-3 py-2 rounded border border-slate-300 text-emerald-600 hover:bg-emerald-50 min-h-[44px]" :disabled="saving" @click="saveStatus(c)">Simpan</button>
+                  <button class="text-sm px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 min-h-[44px]" @click="cancelEdit">Batal</button>
+                </template>
+                <template v-else>
+                  <button class="text-sm px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 min-h-[44px]" @click="startEdit(c)">Edit</button>
+                  <button class="text-sm px-3 py-2 rounded border border-slate-300 text-rose-600 hover:bg-rose-50 min-h-[44px]" :disabled="saving" @click="unassignCard(c)">Delete</button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>

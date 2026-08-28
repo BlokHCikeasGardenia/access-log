@@ -171,7 +171,8 @@ onMounted(load)
     <div v-else-if="residents.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
       Belum ada data penghuni.
     </div>
-    <div v-else class="bg-white rounded border border-slate-200 overflow-x-auto">
+
+    <div v-if="residents.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
@@ -195,6 +196,24 @@ onMounted(load)
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div v-if="residents.length" class="md:hidden space-y-3">
+      <div v-for="r in residents" :key="r.id" class="bg-white rounded border border-slate-200 p-4">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-1">
+              <span class="font-semibold text-slate-800">{{ r.blok }}</span>
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-slate-100">{{ r.status }}</span>
+            </div>
+            <p class="text-sm text-slate-600 truncate">{{ r.nama }}</p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button class="text-sm px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 min-h-[44px]" @click="openEdit(r)">Edit</button>
+            <button class="text-sm px-3 py-2 rounded border border-slate-300 text-rose-600 hover:bg-rose-50 min-h-[44px]" @click="openDelete(r)">Delete</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <Modal :open="showAdd" title="Tambah Penghuni" @close="showAdd = false">
