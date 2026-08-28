@@ -1,8 +1,0 @@
-Blok	Penghuni
-3/1	Jono
-3/2	Dedi
-3/3	Andi
-3/5	Sofyan
-4/1	Maman
-4/2	Edi
-4/3	Tono
