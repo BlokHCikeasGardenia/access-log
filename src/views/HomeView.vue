@@ -10,9 +10,11 @@ interface GateLog {
   id_kartu: string
 }
 
-// A row enriched with the matched resident (may be null if card not linked).
+// A row enriched with the matched resident (may be null if card not linked)
+// and the full card identity (uid + label A + label B).
 interface LogRow extends GateLog {
   warga: string | null
+  kartu: string
 }
 
 const logs = ref<LogRow[]>([])
@@ -34,6 +36,7 @@ const filteredLogs = computed(() => {
     return (
       log.tgl.toLowerCase().includes(q) ||
       log.id_kartu.toLowerCase().includes(q) ||
+      log.kartu.toLowerCase().includes(q) ||
       (log.warga || '').toLowerCase().includes(q)
     )
   })
@@ -61,6 +64,9 @@ const tanggalAkhir = ref(todayISO())
 // Map card UID -> resident label, loaded from Supabase for name matching.
 const wargaByUid = ref<Record<string, string>>({})
 
+// Map card UID -> full card identity "uid | labelA | labelB".
+const kartuByUid = ref<Record<string, string>>({})
+
 const edgeUrl = (import.meta.env.VITE_SUPABASE_EDGE_LOG_GATE as string) || ''
 
 /** Translate the API's direction value (MASUK/KELUAR) to IN/OUT. */
@@ -71,7 +77,7 @@ function arahLabel(raw: string): string {
 async function loadResidentsMap() {
   try {
     const [cardsRes, resRes] = await Promise.all([
-      supabase.from('cards').select('uid,resident_id'),
+      supabase.from('cards').select('uid,label_a,label_b,resident_id'),
       supabase.from('residents').select('id,blok,nama'),
     ])
     if (cardsRes.error) throw cardsRes.error
@@ -83,11 +89,15 @@ async function loadResidentsMap() {
     }
 
     const map: Record<string, string> = {}
+    const kartuMap: Record<string, string> = {}
     for (const c of (cardsRes.data as any[]) || []) {
+      const uid = (c.uid as string).trim()
       const label = c.resident_id ? resMap.get(c.resident_id) : undefined
-      if (label) map[(c.uid as string).trim()] = label
+      if (label) map[uid] = label
+      kartuMap[uid] = [uid, c.label_a || '', c.label_b || ''].join(' | ')
     }
     wargaByUid.value = map
+    kartuByUid.value = kartuMap
   } catch (e: any) {
     console.error('[Log Akses] Gagal memuat data penghuni/kartu:', e?.message || e)
   }
@@ -124,11 +134,15 @@ async function loadLogs() {
       throw new Error(json.message || 'Gagal memuat log.')
     }
     const rows: GateLog[] = Array.isArray(json.data) ? json.data : []
-    logs.value = rows.map((r) => ({
-      ...r,
-      arah: arahLabel(r.arah),
-      warga: wargaByUid.value[(r.id_kartu || '').trim()] || null,
-    }))
+    logs.value = rows.map((r) => {
+      const uid = (r.id_kartu || '').trim()
+      return {
+        ...r,
+        arah: arahLabel(r.arah),
+        warga: wargaByUid.value[uid] || null,
+        kartu: kartuByUid.value[uid] || uid,
+      }
+    })
     currentPage.value = 1
   } catch (e: any) {
     error.value = e?.message || 'Terjadi kesalahan saat memuat log.'
@@ -254,7 +268,7 @@ onMounted(async () => {
           >
             <td class="border border-slate-200 px-3 py-1.5 whitespace-nowrap">{{ log.tgl }}</td>
             <td class="border border-slate-200 px-3 py-1.5 font-semibold">{{ log.arah }}</td>
-            <td class="border border-slate-200 px-3 py-1.5 font-mono">{{ log.id_kartu }}</td>
+            <td class="border border-slate-200 px-3 py-1.5 font-mono">{{ log.kartu }}</td>
             <td class="border border-slate-200 px-3 py-1.5">{{ log.warga || '—' }}</td>
           </tr>
         </tbody>

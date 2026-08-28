@@ -2,25 +2,10 @@
 import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { parseCards } from '@/lib/parse'
-import { importCardsSample } from '@/lib/seed'
 import { notify } from '@/lib/toast'
 import { friendlyError, isUniqueViolation } from '@/lib/errors'
 import type { Card } from '@/types'
 import Modal from '@/components/Modal.vue'
-
-const seeding = ref(false)
-async function seedSample() {
-  seeding.value = true
-  try {
-    const n = await importCardsSample()
-    notify(`Sample kartu diimpor: ${n}.`, 'success')
-    load()
-  } catch (e: any) {
-    notify(e?.message || 'Gagal impor sample.', 'error')
-  } finally {
-    seeding.value = false
-  }
-}
 
 const cards = ref<Card[]>([])
 const residents = ref<Record<string, string>>({})
@@ -229,9 +214,6 @@ onMounted(load)
       </div>
       <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
         + Tambah Kartu
-      </button>
-      <button class="bg-slate-800 text-white rounded px-4 py-2 text-sm font-medium hover:bg-slate-900 disabled:opacity-50" :disabled="seeding" @click="seedSample">
-        {{ seeding ? 'Mengimpor…' : 'Import Sample' }}
       </button>
     </div>
 

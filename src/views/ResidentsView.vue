@@ -2,24 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { parseResidents } from '@/lib/parse'
-import { importResidentsSample } from '@/lib/seed'
 import { notify } from '@/lib/toast'
 import type { Resident } from '@/types'
 import Modal from '@/components/Modal.vue'
-
-const seeding = ref(false)
-async function seedSample() {
-  seeding.value = true
-  try {
-    const n = await importResidentsSample()
-    notify(`Sample penghuni diimpor: ${n}.`, 'success')
-    load()
-  } catch (e: any) {
-    notify(e?.message || 'Gagal impor sample.', 'error')
-  } finally {
-    seeding.value = false
-  }
-}
 
 const residents = ref<Resident[]>([])
 const loading = ref(false)
@@ -179,9 +164,6 @@ onMounted(load)
       </div>
       <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
         + Tambah Penghuni
-      </button>
-      <button class="bg-slate-800 text-white rounded px-4 py-2 text-sm font-medium hover:bg-slate-900 disabled:opacity-50" :disabled="seeding" @click="seedSample">
-        {{ seeding ? 'Mengimpor…' : 'Import Sample' }}
       </button>
     </div>
 
