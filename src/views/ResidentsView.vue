@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { parseResidents } from '@/lib/parse'
 import { notify } from '@/lib/toast'
@@ -8,6 +8,32 @@ import Modal from '@/components/Modal.vue'
 
 const residents = ref<Resident[]>([])
 const loading = ref(false)
+
+const filterQuery = ref('')
+const filterBlok = ref('')
+const filterStatus = ref('')
+
+const filteredResidents = computed(() => {
+  const q = filterQuery.value.trim().toLowerCase()
+  return residents.value.filter((r) => {
+    if (q) {
+      const hay = `${r.blok} ${r.nama}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    if (filterBlok.value && r.blok.toLowerCase() !== filterBlok.value.trim().toLowerCase()) return false
+    if (filterStatus.value && r.status !== filterStatus.value) return false
+    return true
+  })
+})
+
+const totalResidents = computed(() => residents.value.length)
+const activeResidents = computed(() => residents.value.filter((r) => r.status === 'Active').length)
+const inactiveResidents = computed(() => residents.value.filter((r) => r.status === 'Inactive').length)
+
+const uniqueBloks = computed(() => {
+  const s = new Set(residents.value.map((r) => r.blok).filter(Boolean))
+  return [...s].sort((a, b) => a.localeCompare(b))
+})
 
 const showAdd = ref(false)
 const addTab = ref<'manual' | 'upload'>('manual')
@@ -167,12 +193,56 @@ onMounted(load)
       </button>
     </div>
 
-    <div v-if="loading" class="text-slate-500 text-sm">Memuat…</div>
-    <div v-else-if="residents.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
-      Belum ada data penghuni.
+<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">{{ totalResidents }}</p>
+        <p class="text-xs text-slate-500">Total Penghuni</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-emerald-600">{{ activeResidents }}</p>
+        <p class="text-xs text-slate-500">Aktif</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-amber-600">{{ inactiveResidents }}</p>
+        <p class="text-xs text-slate-500">Tidak Aktif</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-600">{{ uniqueBloks.length }}</p>
+        <p class="text-xs text-slate-500">Blok</p>
+      </div>
     </div>
 
-    <div v-if="residents.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
+    <div v-if="residents.length" class="bg-white rounded border border-slate-200 p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Pencarian</label>
+            <input v-model="filterQuery" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Blok / Nama" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Blok</label>
+            <select v-model="filterBlok" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+              <option value="">Semua</option>
+              <option v-for="b in uniqueBloks" :key="b" :value="b">{{ b }}</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+            <select v-model="filterStatus" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+              <option value="">Semua</option>
+              <option value="Active">Aktif</option>
+              <option value="Inactive">Tidak Aktif</option>
+            </select>
+          </div>
+        </div>
+        <p v-if="filteredResidents.length !== residents.length" class="text-xs text-slate-500 mt-2">{{ filteredResidents.length }} dari {{ residents.length }} penghuni ditampilkan.</p>
+      </div>
+
+      <div v-if="loading" class="text-slate-500 text-sm">Memuat…</div>
+      <div v-else-if="residents.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
+        Belum ada data penghuni.
+      </div>
+
+      <div v-if="residents.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
@@ -182,8 +252,8 @@ onMounted(load)
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="r in residents" :key="r.id">
+<tbody class="divide-y divide-slate-100">
+           <tr v-for="r in filteredResidents" :key="r.id">
             <td class="px-4 py-3">{{ r.blok }}</td>
             <td class="px-4 py-3">{{ r.nama }}</td>
             <td class="px-4 py-3">
@@ -198,8 +268,8 @@ onMounted(load)
       </table>
     </div>
 
-    <div v-if="residents.length" class="md:hidden space-y-3">
-      <div v-for="r in residents" :key="r.id" class="bg-white rounded border border-slate-200 p-4">
+<div v-if="filteredResidents.length" class="md:hidden space-y-3">
+       <div v-for="r in filteredResidents" :key="r.id" class="bg-white rounded border border-slate-200 p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
