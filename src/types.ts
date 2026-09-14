@@ -12,6 +12,8 @@ export interface Card {
   uid: string
   label_a: string | null
   label_b: string | null
+  blok?: string
+  no_rumah?: string
   resident_id: string | null
   card_status: 'Aktif' | 'Rusak' | 'Hilang'
   created_at?: string

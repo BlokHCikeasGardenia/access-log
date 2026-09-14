@@ -2,3 +2,6 @@ project_id = "log-akses"
 
 [functions.log-gate]
 verify_jwt = true
+
+[functions.log-card-list]
+verify_jwt = true

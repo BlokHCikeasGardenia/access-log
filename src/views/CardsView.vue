@@ -10,6 +10,10 @@ import Modal from '@/components/Modal.vue'
 const cards = ref<Card[]>([])
 const residents = ref<Record<string, string>>({})
 const loading = ref(false)
+const pulling = ref(false)
+const syncStats = ref<{ inserted: number; skipped: number } | null>(null)
+
+const CARD_LIST_URL = (import.meta.env.VITE_SUPABASE_EDGE_CARD_LIST as string) || ''
 
 const showAdd = ref(false)
 const addTab = ref<'manual' | 'upload'>('manual')
@@ -30,6 +34,12 @@ function uidExists(value: string): boolean {
 /** Live hint for the manual add form — true while the typed UID already exists. */
 const uidDuplicate = computed(() => uidExists(uid.value))
 
+const totalCards = computed(() => cards.value.length)
+const activeCards = computed(() => cards.value.filter((c) => c.card_status === 'Aktif').length)
+const damagedCards = computed(() => cards.value.filter((c) => c.card_status === 'Rusak').length)
+const lostCards = computed(() => cards.value.filter((c) => c.card_status === 'Hilang').length)
+const unassignedCards = computed(() => cards.value.filter((c) => c.resident_id === null).length)
+
 const showEdit = ref(false)
 const editTarget = ref<Card | null>(null)
 const editLabelA = ref('')
@@ -39,6 +49,75 @@ const showDelete = ref(false)
 const deleteTarget = ref<Card | null>(null)
 const deleteWarn = ref<string | null>(null)
 const deleting = ref(false)
+
+async function pullFromApi() {
+  if (!CARD_LIST_URL) {
+    notify('URL Edge Function card-list belum diatur.', 'error')
+    return
+  }
+  pulling.value = true
+  syncStats.value = null
+  try {
+    const { data: sessionData } = await supabase.auth.getSession()
+    const token = sessionData?.session?.access_token
+
+    const res = await fetch(CARD_LIST_URL, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+    if (!res.ok) throw new Error(`Gagal tarik data (${res.status}).`)
+    const json = await res.json()
+    if (!json.success) throw new Error(json.message || 'Gagal tarik data.')
+
+    const apiCards: Array<{ uid: string; label_a: string; label_b: string; blok?: string; no_rumah?: string }> = Array.isArray(json.data) ? json.data : []
+
+    const { data: existingCards, error: fetchErr } = await supabase.from('cards').select('uid')
+    if (fetchErr) throw fetchErr
+
+    const existingUids = new Set((existingCards ?? []).map((c) => c.uid))
+    const newCards = apiCards.filter((c) => !existingUids.has(c.uid))
+    const skipped = apiCards.length - newCards.length
+
+    let inserted = 0
+    const dupErrors: string[] = []
+      for (const row of newCards) {
+        const { error } = await supabase.from('cards').insert({
+          uid: row.uid,
+          label_a: row.label_a || null,
+          label_b: row.label_b || null,
+          blok: row.blok || null,
+          no_rumah: row.no_rumah || null,
+          resident_id: null,
+          card_status: 'Aktif',
+        })
+      if (error) {
+        if (isUniqueViolation(error)) {
+          dupErrors.push(`UID ${row.uid} sudah ada, dilewati.`)
+        }
+        continue
+      }
+      inserted++
+    }
+
+    syncStats.value = { inserted, skipped }
+
+    if (inserted > 0 || skipped > 0 || dupErrors.length) {
+      notify(
+        `Sync selesai: ${inserted} kartu baru dimasukkan.` +
+          (skipped > 0 ? ` ${skipped} dilewati (sudah ada).` : '') +
+          (dupErrors.length ? ` ${dupErrors.length} duplikat saat insert.` : ''),
+        inserted > 0 ? 'success' : 'error',
+      )
+    } else {
+      notify('Tidak ada kartu baru untuk dimasukkan.', 'info')
+    }
+
+    load()
+  } catch (e: any) {
+    notify(e?.message || 'Gagal menarik data dari API.', 'error')
+  } finally {
+    pulling.value = false
+  }
+}
 
 async function load() {
   loading.value = true
@@ -210,14 +289,53 @@ onMounted(load)
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Kartu</h1>
-        <p class="text-sm text-slate-500">Master kartu akses (UID, Label A, Label B).</p>
+        <p class="text-sm text-slate-500">Master kartu akses (UID, Label A, Label B, Blok, No Rumah).</p>
       </div>
-      <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
-        + Tambah Kartu
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          v-if="syncStats"
+          class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600"
+          title="Hasil sync terakhir"
+        >
+          Sync: {{ syncStats.inserted }} masuk, {{ syncStats.skipped }} dilewati
+        </button>
+        <button
+          class="bg-emerald-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+          :disabled="pulling || loading"
+          @click="pullFromApi"
+        >
+          {{ pulling ? 'Menarik…' : 'Tarik Data' }}
+        </button>
+        <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
+          + Tambah Kartu
+        </button>
+      </div>
     </div>
 
-    <div v-if="loading" class="text-slate-500 text-sm">Memuat…</div>
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-800">{{ totalCards }}</p>
+        <p class="text-xs text-slate-500">Total Kartu</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-emerald-600">{{ activeCards }}</p>
+        <p class="text-xs text-slate-500">Aktif</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-amber-600">{{ damagedCards }}</p>
+        <p class="text-xs text-slate-500">Rusak</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-rose-600">{{ lostCards }}</p>
+        <p class="text-xs text-slate-500">Hilang</p>
+      </div>
+      <div class="bg-white rounded border border-slate-200 p-3 text-center">
+        <p class="text-2xl font-bold text-slate-600">{{ unassignedCards }}</p>
+        <p class="text-xs text-slate-500">Belum Dipasang</p>
+      </div>
+    </div>
+
+    <div v-if="loading || pulling" class="text-slate-500 text-sm">Memuat…</div>
     <div v-else-if="cards.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
       Belum ada data kartu.
     </div>
@@ -229,6 +347,8 @@ onMounted(load)
             <th class="px-4 py-3 font-medium">UID</th>
             <th class="px-4 py-3 font-medium">Label A</th>
             <th class="px-4 py-3 font-medium">Label B</th>
+            <th class="px-4 py-3 font-medium">Blok</th>
+            <th class="px-4 py-3 font-medium">No Rumah</th>
             <th class="px-4 py-3 font-medium">Penghuni</th>
             <th class="px-4 py-3 font-medium">Status</th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
@@ -239,6 +359,8 @@ onMounted(load)
             <td class="px-4 py-3 font-mono">{{ c.uid }}</td>
             <td class="px-4 py-3">{{ c.label_a || '—' }}</td>
             <td class="px-4 py-3">{{ c.label_b || '—' }}</td>
+            <td class="px-4 py-3">{{ c.blok || '—' }}</td>
+            <td class="px-4 py-3">{{ c.no_rumah || '—' }}</td>
             <td class="px-4 py-3">{{ residentName(c.resident_id) }}</td>
             <td class="px-4 py-3">
               <span class="inline-block px-2 py-0.5 rounded-full text-xs" :class="{
@@ -269,6 +391,7 @@ onMounted(load)
               }">{{ c.card_status }}</span>
             </div>
             <p class="text-xs text-slate-500">A: {{ c.label_a || '—' }} · B: {{ c.label_b || '—' }}</p>
+            <p class="text-xs text-slate-500">Blok: {{ c.blok || '—' }} · No Rumah: {{ c.no_rumah || '—' }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Penghuni: {{ residentName(c.resident_id) }}</p>
           </div>
           <div class="flex items-center gap-2 shrink-0">

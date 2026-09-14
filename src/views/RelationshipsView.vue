@@ -10,9 +10,20 @@ const loading = ref(false)
 
 const adding = reactive<Record<string, boolean>>({})
 const query = reactive<Record<string, string>>({})
+const tableFilter = ref('')
 const saving = ref(false)
 const editingCard = ref<string | null>(null)
 const editStatus = ref<CardStatus>('Aktif')
+
+const filteredGroups = computed(() => {
+  const q = tableFilter.value.toLowerCase().trim()
+  if (!q) return groups.value
+  return groups.value.filter(
+    (g) =>
+      g.resident.nama.toLowerCase().includes(q) ||
+      g.resident.blok.toLowerCase().includes(q),
+  )
+})
 
 async function load() {
   loading.value = true
@@ -42,6 +53,8 @@ function filteredUnassigned(residentId: string) {
   if (!q) return unassigned.value
   return unassigned.value.filter(
     (c) =>
+      (c.blok || '').toLowerCase().includes(q) ||
+      (c.no_rumah || '').toLowerCase().includes(q) ||
       (c.label_b || '').toLowerCase().includes(q) ||
       (c.label_a || '').toLowerCase().includes(q) ||
       c.uid.toLowerCase().includes(q),
@@ -110,6 +123,11 @@ function cancelEdit() {
 }
 
 const totalCards = computed(() => groups.value.reduce((n, g) => n + g.cards.length, 0))
+const unassignedResidents = computed(() => groups.value.filter((g) => g.cards.length === 0).length)
+const avgCardsPerResident = computed(() => {
+  if (groups.value.length === 0) return '0'
+  return (totalCards.value / groups.value.length).toFixed(1)
+})
 
 onMounted(load)
 </script>
@@ -119,7 +137,14 @@ onMounted(load)
     <div class="flex items-center justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Pairing Penghuni &amp; Kartu</h1>
-        <p class="text-sm text-slate-500">{{ groups.length }} penghuni · {{ totalCards }} kartu terpasang · {{ unassigned.length }} kartu belum terpasang.</p>
+        <p class="text-sm text-slate-500">{{ groups.length }} penghuni · {{ totalCards }} kartu terpasang · {{ unassigned.length }} kartu belum terpasang · {{ unassignedResidents }} belum punya kartu · Rata-rata {{ avgCardsPerResident }} kartu/penghuni.</p>
+      </div>
+    </div>
+
+    <div v-if="groups.length" class="flex flex-col md:flex-row md:items-end gap-3 mb-4">
+      <div class="flex-1">
+        <label class="block text-sm font-medium text-slate-600 mb-1">Filter</label>
+        <input v-model="tableFilter" type="text" placeholder="Cari berdasarkan Nama atau Blok…" class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]" />
       </div>
     </div>
 
@@ -128,25 +153,27 @@ onMounted(load)
       Belum ada data penghuni. Tambah penghuni terlebih dahulu.
     </div>
 
-    <div v-if="groups.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
+    <div v-if="filteredGroups.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
-            <th class="px-4 py-3 font-medium">Blok</th>
+            <th class="px-4 py-3 font-medium">Blok (Penghuni)</th>
             <th class="px-4 py-3 font-medium">Penghuni</th>
             <th class="px-4 py-3 font-medium">UID</th>
             <th class="px-4 py-3 font-medium">Label A</th>
             <th class="px-4 py-3 font-medium">Label B</th>
+            <th class="px-4 py-3 font-medium">Blok</th>
+            <th class="px-4 py-3 font-medium">No Rumah</th>
             <th class="px-4 py-3 font-medium">Card Status</th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <template v-for="g in groups" :key="g.resident.id">
+          <template v-for="g in filteredGroups" :key="g.resident.id">
             <tr v-if="g.cards.length === 0" class="bg-slate-50/40">
               <td class="px-4 py-3 font-medium">{{ g.resident.blok }}</td>
               <td class="px-4 py-3 font-medium">{{ g.resident.nama }}</td>
-              <td colspan="4" class="px-4 py-3 text-slate-400 italic">belum ada kartu</td>
+              <td colspan="6" class="px-4 py-3 text-slate-400 italic">belum ada kartu</td>
               <td class="px-4 py-3 text-right">
                 <button class="text-indigo-600 hover:underline" @click="startAdd(g.resident.id)">+ Tambah Kartu</button>
               </td>
@@ -159,6 +186,8 @@ onMounted(load)
                 <td class="px-4 py-3 font-mono">{{ c.uid }}</td>
                 <td class="px-4 py-3">{{ c.label_a || '—' }}</td>
                 <td class="px-4 py-3">{{ c.label_b || '—' }}</td>
+                <td class="px-4 py-3">{{ c.blok || '—' }}</td>
+                <td class="px-4 py-3">{{ c.no_rumah || '—' }}</td>
                 <td class="px-4 py-3">
                   <select
                     v-if="editingCard === c.id"
@@ -190,12 +219,12 @@ onMounted(load)
               <td :colspan="2" class="px-4 py-2 text-xs text-slate-500">Pasang kartu ke {{ g.resident.nama }}:</td>
               <td colspan="5" class="px-4 py-2">
                 <div class="flex flex-col gap-1">
-                  <input
-                    v-model="query[g.resident.id]"
-                    class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm"
-                    placeholder="Cari berdasarkan Label B / Label A / UID…"
-                    autofocus
-                  />
+                    <input
+                      v-model="query[g.resident.id]"
+                      class="w-full rounded border border-slate-300 px-3 py-1.5 text-sm"
+                      placeholder="Cari berdasarkan Blok / No Rumah / UID…"
+                      autofocus
+                    />
                   <div v-if="filteredUnassigned(g.resident.id).length" class="border border-slate-200 rounded bg-white max-h-40 overflow-auto">
                     <button
                       v-for="c in filteredUnassigned(g.resident.id)"
@@ -205,6 +234,8 @@ onMounted(load)
                       @click="assignCard(c, g.resident.id)"
                     >
                       <span class="font-mono">{{ c.uid }}</span>
+                      <span class="text-slate-500">Blok:{{ c.blok || '—' }}</span>
+                      <span class="text-slate-500">No:{{ c.no_rumah || '—' }}</span>
                       <span class="text-slate-500">A:{{ c.label_a || '—' }}</span>
                       <span class="text-slate-500">B:{{ c.label_b || '—' }}</span>
                     </button>
@@ -226,8 +257,8 @@ onMounted(load)
       </table>
     </div>
 
-    <div v-if="groups.length" class="md:hidden space-y-4">
-      <div v-for="g in groups" :key="g.resident.id" class="bg-white rounded border border-slate-200 p-4">
+    <div v-if="filteredGroups.length" class="md:hidden space-y-4">
+      <div v-for="g in filteredGroups" :key="g.resident.id" class="bg-white rounded border border-slate-200 p-4">
         <div class="flex items-center justify-between mb-2">
           <div>
             <span class="font-semibold text-slate-800">{{ g.resident.blok }}</span>
@@ -242,7 +273,7 @@ onMounted(load)
           <input
             v-model="query[g.resident.id]"
             class="w-full rounded border border-slate-300 px-3 py-2 text-sm min-h-[44px]"
-            placeholder="Cari Label B / Label A / UID…"
+            placeholder="Cari berdasarkan Blok / No Rumah / UID…"
             autofocus
           />
           <div v-if="filteredUnassigned(g.resident.id).length" class="border border-slate-200 rounded bg-white max-h-40 overflow-auto">
@@ -254,6 +285,8 @@ onMounted(load)
               @click="assignCard(c, g.resident.id)"
             >
               <span class="font-mono">{{ c.uid }}</span>
+              <span class="text-slate-500">Blok:{{ c.blok || '—' }}</span>
+              <span class="text-slate-500">No:{{ c.no_rumah || '—' }}</span>
               <span class="text-slate-500">A:{{ c.label_a || '—' }}</span>
               <span class="text-slate-500">B:{{ c.label_b || '—' }}</span>
             </button>
@@ -275,6 +308,7 @@ onMounted(load)
                   }">{{ c.card_status }}</span>
                 </div>
                 <p class="text-xs text-slate-500">A: {{ c.label_a || '—' }} · B: {{ c.label_b || '—' }}</p>
+                <p class="text-xs text-slate-500">Blok: {{ c.blok || '—' }} · No Rumah: {{ c.no_rumah || '—' }}</p>
               </div>
               <div class="flex items-center gap-2 shrink-0">
                 <template v-if="editingCard === c.id">
