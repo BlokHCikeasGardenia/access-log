@@ -46,7 +46,8 @@ export function parseResidents(text: string): ParseResult<Omit<Resident, 'id'>> 
 }
 
 /**
- * Cards .txt — pipe separated, optional header `UID kartu|ID kartu|ID kartu`, format `<uid>|<label_a>|<label_b>`.
+ * Cards .txt — pipe separated, optional header, format `<uid>|<label_a>|<label_b>|<blok>|<no_rumah>`.
+ * Kolom 4 (blok) dan 5 (no_rumah) bersifat opsional; baris dengan 3 kolom masih didukung.
  */
 export function parseCards(text: string): ParseResult<Omit<Card, 'id' | 'resident_id' | 'card_status'>> {
   const lines = text.split(/\r?\n/)
@@ -61,7 +62,7 @@ export function parseCards(text: string): ParseResult<Omit<Card, 'id' | 'residen
 
     const parts = line.split('|').map((p) => p.trim())
     if (parts.length < 3 || !parts[0]) {
-      errors.push(`Baris ${idx + 1}: format salah (diharapkan "UID|LabelA|LabelB").`)
+      errors.push(`Baris ${idx + 1}: format salah (diharapkan "UID|LabelA|LabelB" atau "UID|LabelA|LabelB|Blok|NoRumah").`)
       return
     }
     const uid = parts[0]
@@ -70,7 +71,13 @@ export function parseCards(text: string): ParseResult<Omit<Card, 'id' | 'residen
       return
     }
     seen.add(uid)
-    rows.push({ uid, label_a: parts[1] || null, label_b: parts[2] || null })
+    rows.push({
+      uid,
+      label_a: parts[1] || null,
+      label_b: parts[2] || null,
+      blok: parts[3] || undefined,
+      no_rumah: parts[4] || undefined,
+    })
   })
 
   return { rows, errors }

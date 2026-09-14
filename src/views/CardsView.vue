@@ -20,6 +20,8 @@ const addTab = ref<'manual' | 'upload'>('manual')
 const uid = ref('')
 const labelA = ref('')
 const labelB = ref('')
+const blokManual = ref('')
+const noRumahManual = ref('')
 const uploadText = ref('')
 const uploadPreview = ref<{ ok: number; errors: string[] } | null>(null)
 const saving = ref(false)
@@ -44,11 +46,32 @@ const showEdit = ref(false)
 const editTarget = ref<Card | null>(null)
 const editLabelA = ref('')
 const editLabelB = ref('')
+const editBlok = ref('')
+const editNoRumah = ref('')
 
 const showDelete = ref(false)
 const deleteTarget = ref<Card | null>(null)
 const deleteWarn = ref<string | null>(null)
 const deleting = ref(false)
+
+const filterQuery = ref('')
+const filterBlok = ref('')
+const filterNoRumah = ref('')
+const filterStatus = ref('')
+
+const filteredCards = computed(() => {
+  const q = filterQuery.value.trim().toLowerCase()
+  return cards.value.filter((c) => {
+    if (q) {
+      const hay = `${c.uid} ${c.label_a || ''} ${c.label_b || ''} ${c.blok || ''} ${c.no_rumah || ''}`.toLowerCase()
+      if (!hay.includes(q)) return false
+    }
+    if (filterBlok.value && (c.blok || '').toLowerCase() !== filterBlok.value.trim().toLowerCase()) return false
+    if (filterNoRumah.value && (c.no_rumah || '').toLowerCase() !== filterNoRumah.value.trim().toLowerCase()) return false
+    if (filterStatus.value && c.card_status !== filterStatus.value) return false
+    return true
+  })
+})
 
 async function pullFromApi() {
   if (!CARD_LIST_URL) {
@@ -145,6 +168,8 @@ function openAdd() {
   uid.value = ''
   labelA.value = ''
   labelB.value = ''
+  blokManual.value = ''
+  noRumahManual.value = ''
   uploadText.value = ''
   uploadPreview.value = null
   showAdd.value = true
@@ -178,7 +203,13 @@ async function submitManual() {
   saving.value = true
   const { error } = await supabase
     .from('cards')
-    .insert({ uid: uid.value.trim(), label_a: labelA.value.trim() || null, label_b: labelB.value.trim() || null })
+    .insert({
+      uid: uid.value.trim(),
+      label_a: labelA.value.trim() || null,
+      label_b: labelB.value.trim() || null,
+      blok: blokManual.value.trim() || null,
+      no_rumah: noRumahManual.value.trim() || null,
+    })
   saving.value = false
   if (error) {
     notify(friendlyError(error, 'UID'), 'error')
@@ -235,6 +266,8 @@ function openEdit(c: Card) {
   editTarget.value = c
   editLabelA.value = c.label_a ?? ''
   editLabelB.value = c.label_b ?? ''
+  editBlok.value = c.blok ?? ''
+  editNoRumah.value = c.no_rumah ?? ''
   showEdit.value = true
 }
 
@@ -246,6 +279,8 @@ async function submitEdit() {
     .update({
       label_a: editLabelA.value.trim() || null,
       label_b: editLabelB.value.trim() || null,
+      blok: editBlok.value.trim() || null,
+      no_rumah: editNoRumah.value.trim() || null,
     })
     .eq('id', editTarget.value.id)
   saving.value = false
@@ -340,7 +375,34 @@ onMounted(load)
       Belum ada data kartu.
     </div>
 
-    <div v-if="cards.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
+    <div v-if="cards.length" class="bg-white rounded border border-slate-200 p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Pencarian</label>
+            <input v-model="filterQuery" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="UID / Label / Blok / No Rumah" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Blok</label>
+            <input v-model="filterBlok" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Contoh: A" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">No Rumah</label>
+            <input v-model="filterNoRumah" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="Contoh: 171" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1">Status</label>
+            <select v-model="filterStatus" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+              <option value="">Semua</option>
+              <option value="Aktif">Aktif</option>
+              <option value="Rusak">Rusak</option>
+              <option value="Hilang">Hilang</option>
+            </select>
+          </div>
+        </div>
+        <p v-if="filteredCards.length !== cards.length" class="text-xs text-slate-500 mt-2">{{ filteredCards.length }} dari {{ cards.length }} kartu ditampilkan.</p>
+      </div>
+
+      <div v-if="cards.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
@@ -354,8 +416,8 @@ onMounted(load)
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-slate-100">
-          <tr v-for="c in cards" :key="c.id">
+<tbody class="divide-y divide-slate-100">
+           <tr v-for="c in filteredCards" :key="c.id">
             <td class="px-4 py-3 font-mono">{{ c.uid }}</td>
             <td class="px-4 py-3">{{ c.label_a || '—' }}</td>
             <td class="px-4 py-3">{{ c.label_b || '—' }}</td>
@@ -378,8 +440,8 @@ onMounted(load)
       </table>
     </div>
 
-    <div v-if="cards.length" class="md:hidden space-y-3">
-      <div v-for="c in cards" :key="c.id" class="bg-white rounded border border-slate-200 p-4">
+<div v-if="filteredCards.length" class="md:hidden space-y-3">
+       <div v-for="c in filteredCards" :key="c.id" class="bg-white rounded border border-slate-200 p-4">
         <div class="flex items-start justify-between gap-3 mb-2">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
@@ -422,11 +484,19 @@ onMounted(load)
           <label class="block text-sm font-medium mb-1">Label B</label>
           <input v-model="labelB" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="25161" />
         </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Blok</label>
+          <input v-model="blokManual" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="A" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">No Rumah</label>
+          <input v-model="noRumahManual" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="171" />
+        </div>
       </div>
 
       <div v-else class="space-y-3">
-        <p class="text-xs text-slate-500">Format pipe-separated: <code>UID|LabelA|LabelB</code>. Baris header otomatis dilewati.</p>
-        <textarea v-model="uploadText" rows="8" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="56018067|171|25161"></textarea>
+        <p class="text-xs text-slate-500">Format pipe-separated: <code>UID|LabelA|LabelB|Blok|NoRumah</code> (kolom opsional setelah LabelB). Baris header otomatis dilewati.</p>
+        <textarea v-model="uploadText" rows="8" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="56018067|171|25161|A|171"></textarea>
         <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="previewUpload">Pratinjau</button>
         <div v-if="uploadPreview" class="text-sm">
           <p class="text-emerald-600">{{ uploadPreview.ok }} baris valid.</p>
@@ -447,7 +517,7 @@ onMounted(load)
       </template>
     </Modal>
 
-    <Modal :open="showEdit" title="Edit Label Kartu" @close="showEdit = false">
+    <Modal :open="showEdit" title="Edit Kartu" @close="showEdit = false">
       <p class="text-xs text-slate-500 mb-3">UID tidak dapat diubah.</p>
       <div class="space-y-3">
         <div>
@@ -457,6 +527,14 @@ onMounted(load)
         <div>
           <label class="block text-sm font-medium mb-1">Label B</label>
           <input v-model="editLabelB" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Blok</label>
+          <input v-model="editBlok" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="A" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">No Rumah</label>
+          <input v-model="editNoRumah" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="171" />
         </div>
       </div>
       <template #footer>
