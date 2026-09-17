@@ -3,6 +3,7 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { notify } from '@/lib/toast'
 import { CARD_STATUSES, type Card, type CardStatus, type Resident, type ResidentWithCards } from '@/types'
+import { enqueueGateCommand } from '@/lib/gate-command'
 
 const groups = ref<ResidentWithCards[]>([])
 const unassigned = ref<Card[]>([])
@@ -73,6 +74,8 @@ async function assignCard(card: Card, residentId: string) {
     return
   }
   notify(`Kartu ${card.uid} dipasang.`, 'success')
+  // Daftarkan kartu ke reader gate (best-effort, tidak memblokir pairing).
+  void enqueueGateCommand('ADD', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
   adding[residentId] = false
   query[residentId] = ''
   load()
@@ -97,6 +100,8 @@ async function unassignCard(card: Card) {
     return
   }
   notify(`Kartu ${card.uid} dilepas.`, 'success')
+  // Cabut kartu dari reader gate (best-effort).
+  void enqueueGateCommand('DELETE', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
   load()
 }
 

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { parseResidents } from '@/lib/parse'
 import { notify } from '@/lib/toast'
 import type { Resident } from '@/types'
+import { enqueueGateCommand } from '@/lib/gate-command'
 import Modal from '@/components/Modal.vue'
 
 const residents = ref<Resident[]>([])
@@ -167,6 +168,26 @@ async function openDelete(r: Resident) {
 async function confirmDelete() {
   if (!deleteTarget.value) return
   deleting.value = true
+  // Cabut semua kartu milik penghuni ini dari reader gate, lalu lepaskan
+  // relasinya (FK residents.id) sebelum penghuni dihapus.
+  const { data: linked } = await supabase
+    .from('cards')
+    .select('*')
+    .eq('resident_id', deleteTarget.value.id)
+  for (const card of (linked ?? []) as import('@/types').Card[]) {
+    void enqueueGateCommand('DELETE', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+  }
+  if (linked && linked.length > 0) {
+    const { error: unassignErr } = await supabase
+      .from('cards')
+      .update({ resident_id: null })
+      .eq('resident_id', deleteTarget.value.id)
+    if (unassignErr) {
+      deleting.value = false
+      notify(unassignErr.message, 'error')
+      return
+    }
+  }
   const { error } = await supabase.from('residents').delete().eq('id', deleteTarget.value.id)
   deleting.value = false
   if (error) {

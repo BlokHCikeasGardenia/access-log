@@ -4,8 +4,9 @@ import { supabase } from '@/lib/supabase'
 import { parseCards } from '@/lib/parse'
 import { notify } from '@/lib/toast'
 import { friendlyError, isUniqueViolation } from '@/lib/errors'
-import type { Card } from '@/types'
+import type { Card, GateAction } from '@/types'
 import Modal from '@/components/Modal.vue'
+import { enqueueGateCommand, loadGateStatusByUid, gateStatusClass, gateStatusLabel } from '@/lib/gate-command'
 
 const cards = ref<Card[]>([])
 const residents = ref<Record<string, string>>({})
@@ -53,6 +54,43 @@ const showDelete = ref(false)
 const deleteTarget = ref<Card | null>(null)
 const deleteWarn = ref<string | null>(null)
 const deleting = ref(false)
+
+const gateStatus = ref<Record<string, import('@/types').GateCommand>>({})
+
+const showGate = ref(false)
+const gateTarget = ref<Card | null>(null)
+const gateAction = ref<GateAction>('ADD')
+const gateBusy = ref(false)
+
+function gateStatusFor(c: Card): import('@/types').GateCommand | undefined {
+  return gateStatus.value[c.uid]
+}
+
+async function loadGateStatus() {
+  gateStatus.value = await loadGateStatusByUid()
+}
+
+function openGate(c: Card) {
+  gateTarget.value = c
+  gateAction.value = c.resident_id ? 'UPDATE' : 'ADD'
+  showGate.value = true
+}
+
+async function submitGate() {
+  if (!gateTarget.value) return
+  gateBusy.value = true
+  const cmd = await enqueueGateCommand(gateAction.value, {
+    uid: gateTarget.value.uid,
+    blok: gateTarget.value.blok,
+    no_rumah: gateTarget.value.no_rumah,
+  })
+  gateBusy.value = false
+  if (cmd) {
+    notify(`Command ${gateAction.value} UID ${cmd.uid} masuk antrean gate.`, 'success')
+    showGate.value = false
+    void loadGateStatus()
+  }
+}
 
 const filterQuery = ref('')
 const filterBlok = ref('')
@@ -157,6 +195,7 @@ async function load() {
     residents.value = Object.fromEntries((resRes.data as any[]).map((r) => [r.id, `${r.blok} - ${r.nama}`]))
   }
   loading.value = false
+  void loadGateStatus()
 }
 
 function residentName(id: string | null) {
@@ -273,6 +312,8 @@ function openEdit(c: Card) {
 
 async function submitEdit() {
   if (!editTarget.value) return
+  const oldBlok = editTarget.value.blok ?? ''
+  const oldNoRumah = editTarget.value.no_rumah ?? ''
   saving.value = true
   const { error } = await supabase
     .from('cards')
@@ -289,6 +330,15 @@ async function submitEdit() {
     return
   }
   notify('Label kartu diperbarui.', 'success')
+  // Blok / no rumah berubah → sinkronkan lokasi kartu di reader gate.
+  if ((editBlok.value.trim() || '') !== oldBlok || (editNoRumah.value.trim() || '') !== oldNoRumah) {
+    void enqueueGateCommand('UPDATE', {
+      uid: editTarget.value.uid,
+      blok: editBlok.value.trim() || null,
+      no_rumah: editNoRumah.value.trim() || null,
+    })
+    notify('Perubahan lokasi dikirim ke gate (UPDATE).', 'info')
+  }
   showEdit.value = false
   load()
 }
@@ -305,6 +355,12 @@ async function openDelete(c: Card) {
 async function confirmDelete() {
   if (!deleteTarget.value) return
   deleting.value = true
+  // Cabut kartu dari reader gate sebelum data lokal dihapus.
+  await enqueueGateCommand('DELETE', {
+    uid: deleteTarget.value.uid,
+    blok: deleteTarget.value.blok,
+    no_rumah: deleteTarget.value.no_rumah,
+  })
   const { error } = await supabase.from('cards').delete().eq('id', deleteTarget.value.id)
   deleting.value = false
   if (error) {
@@ -344,6 +400,7 @@ onMounted(load)
         <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
           + Tambah Kartu
         </button>
+        <RouterLink to="/gate-sync" class="border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100 text-center">Sinkronisasi Gate</RouterLink>
       </div>
     </div>
 
@@ -413,6 +470,7 @@ onMounted(load)
             <th class="px-4 py-3 font-medium">No Rumah</th>
             <th class="px-4 py-3 font-medium">Penghuni</th>
             <th class="px-4 py-3 font-medium">Status</th>
+            <th class="px-4 py-3 font-medium">Status Gate</th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
         </thead>
@@ -431,7 +489,12 @@ onMounted(load)
                 'bg-rose-100 text-rose-700': c.card_status === 'Hilang',
               }">{{ c.card_status }}</span>
             </td>
+            <td class="px-4 py-3">
+              <span v-if="gateStatusFor(c)" class="inline-block px-2 py-0.5 rounded-full text-xs" :class="gateStatusClass(gateStatusFor(c)!.status)">{{ gateStatusLabel(gateStatusFor(c)!.status) }}</span>
+              <span v-else class="text-slate-300">—</span>
+            </td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
+              <button class="text-emerald-600 hover:underline mr-3" @click="openGate(c)">Gate</button>
               <button class="text-indigo-600 hover:underline mr-3" @click="openEdit(c)">Edit</button>
               <button class="text-rose-600 hover:underline" @click="openDelete(c)">Delete</button>
             </td>
@@ -455,8 +518,12 @@ onMounted(load)
             <p class="text-xs text-slate-500">A: {{ c.label_a || '—' }} · B: {{ c.label_b || '—' }}</p>
             <p class="text-xs text-slate-500">Blok: {{ c.blok || '—' }} · No Rumah: {{ c.no_rumah || '—' }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Penghuni: {{ residentName(c.resident_id) }}</p>
+            <p class="text-xs mt-1">
+              <span v-if="gateStatusFor(c)" class="inline-block px-2 py-0.5 rounded-full text-xs" :class="gateStatusClass(gateStatusFor(c)!.status)">Gate: {{ gateStatusLabel(gateStatusFor(c)!.status) }}</span>
+            </p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
+            <button class="text-sm px-3 py-2 rounded border border-slate-300 text-emerald-600 min-h-[44px]" @click="openGate(c)">Gate</button>
             <button class="text-sm px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 min-h-[44px]" @click="openEdit(c)">Edit</button>
             <button class="text-sm px-3 py-2 rounded border border-slate-300 text-rose-600 hover:bg-rose-50 min-h-[44px]" @click="openDelete(c)">Delete</button>
           </div>
@@ -552,6 +619,23 @@ onMounted(load)
         <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="showDelete = false">Batal</button>
         <button class="text-sm px-4 py-1.5 rounded bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-50" :disabled="deleting" @click="confirmDelete">
           {{ deleting ? 'Menghapus…' : 'Hapus' }}
+        </button>
+      </template>
+    </Modal>
+    <Modal :open="showGate" title="Kirim ke Gate" @close="showGate = false">
+      <p class="text-sm text-slate-600 mb-3">Kartu <strong class="font-mono">{{ gateTarget?.uid }}</strong> — Blok {{ gateTarget?.blok || '—' }}, No Rumah {{ gateTarget?.no_rumah || '—' }}.</p>
+      <div>
+        <label class="block text-sm font-medium mb-1">Action</label>
+        <select v-model="gateAction" class="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+          <option value="ADD">ADD — daftarkan kartu</option>
+          <option value="UPDATE">UPDATE — perbarui lokasi kartu</option>
+          <option value="DELETE">DELETE — hapus kartu dari reader</option>
+        </select>
+      </div>
+      <template #footer>
+        <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="showGate = false">Batal</button>
+        <button class="text-sm px-4 py-1.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50" :disabled="gateBusy" @click="submitGate">
+          {{ gateBusy ? 'Mengirim…' : 'Kirim' }}
         </button>
       </template>
     </Modal>

@@ -34,6 +34,7 @@ async function handleLogout() {
           <RouterLink to="/residents" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Penghuni</RouterLink>
           <RouterLink to="/cards" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Kartu</RouterLink>
           <RouterLink to="/relationships" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Pairing</RouterLink>
+          <RouterLink to="/gate-sync" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Sinkronisasi Gate</RouterLink>
         </nav>
         <div class="hidden md:flex ml-auto items-center gap-3">
           <span class="text-xs text-slate-500 truncate max-w-[200px]">{{ auth.user?.email }}</span>
@@ -45,6 +46,7 @@ async function handleLogout() {
         <RouterLink to="/residents" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Penghuni</RouterLink>
         <RouterLink to="/cards" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Kartu</RouterLink>
         <RouterLink to="/relationships" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Pairing</RouterLink>
+        <RouterLink to="/gate-sync" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Sinkronisasi Gate</RouterLink>
         <div class="pt-2 border-t border-slate-100">
           <span class="block px-3 py-2 text-xs text-slate-500 truncate">{{ auth.user?.email }}</span>
           <button class="w-full text-left text-sm px-3 py-2 rounded hover:bg-slate-100 text-rose-600" @click="handleLogout">Keluar</button>

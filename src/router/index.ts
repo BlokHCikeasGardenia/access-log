@@ -9,6 +9,7 @@ const routes: RouteRecordRaw[] = [
   { path: '/residents', name: 'residents', component: () => import('@/views/ResidentsView.vue') },
   { path: '/cards', name: 'cards', component: () => import('@/views/CardsView.vue') },
   { path: '/relationships', name: 'relationships', component: () => import('@/views/RelationshipsView.vue') },
+  { path: '/gate-sync', name: 'gate-sync', component: () => import('@/views/GateSyncView.vue') },
 ]
 
 const router = createRouter({

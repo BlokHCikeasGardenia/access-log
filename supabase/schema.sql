@@ -45,14 +45,41 @@ drop trigger if exists cards_updated_at on cards;
 create trigger cards_updated_at before update on cards
   for each row execute function set_updated_at();
 
+-- Gate command queue: pushes card changes to the external gate readers and
+-- stores their feedback (see migration 20260917120000_create-gate-commands.sql).
+create table if not exists gate_commands (
+  id             uuid primary key default uuid_generate_v4(),
+  action         text not null check (action in ('ADD','UPDATE','DELETE')),
+  uid            text not null,
+  blok           text not null default '',
+  no_rumah       text not null default '',
+  status         text not null default 'QUEUED'
+                 check (status in ('QUEUED','SENDING','WAITING_RESULT','DONE','FAILED')),
+  attempt_count  integer not null default 0,
+  response_json  jsonb,
+  feedback_json  jsonb,
+  error_message  text,
+  created_at     timestamptz default now(),
+  updated_at     timestamptz default now()
+);
+
+create index if not exists gate_commands_uid_idx on gate_commands(uid);
+create index if not exists gate_commands_status_idx on gate_commands(status);
+create index if not exists gate_commands_created_idx on gate_commands(created_at desc);
+
+drop trigger if exists gate_commands_updated_at on gate_commands;
+create trigger gate_commands_updated_at before update on gate_commands
+  for each row execute function set_updated_at();
+
 -- Row Level Security: authenticated users only
 alter table residents enable row level security;
 alter table cards enable row level security;
+alter table gate_commands enable row level security;
 
 do $$
 declare t text;
 begin
-  foreach t in array array['residents','cards'] loop
+  foreach t in array array['residents','cards','gate_commands'] loop
     execute format('drop policy if exists %I on %I;', t || '_select', t);
     execute format('drop policy if exists %I on %I;', t || '_insert', t);
     execute format('drop policy if exists %I on %I;', t || '_update', t);

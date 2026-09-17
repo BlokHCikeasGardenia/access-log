@@ -5,3 +5,9 @@ verify_jwt = true
 
 [functions.log-card-list]
 verify_jwt = true
+
+[functions.card-command]
+verify_jwt = true
+
+[functions.command-result]
+verify_jwt = true
