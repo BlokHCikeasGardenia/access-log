@@ -26,3 +26,18 @@ create trigger gate_commands_updated_at before update on gate_commands
   for each row execute function set_updated_at();
 
 alter table gate_commands enable row level security;
+
+-- RLS: same pattern as residents/cards — authenticated users only.
+do $$
+declare t text := 'gate_commands';
+begin
+  execute format('drop policy if exists %I on %I;', t || '_select', t);
+  execute format('drop policy if exists %I on %I;', t || '_insert', t);
+  execute format('drop policy if exists %I on %I;', t || '_update', t);
+  execute format('drop policy if exists %I on %I;', t || '_delete', t);
+
+  execute format('create policy %I on %I for select to authenticated using (auth.uid() is not null);', t || '_select', t);
+  execute format('create policy %I on %I for insert to authenticated with check (auth.uid() is not null);', t || '_insert', t);
+  execute format('create policy %I on %I for update to authenticated using (auth.uid() is not null) with check (auth.uid() is not null);', t || '_update', t);
+  execute format('create policy %I on %I for delete to authenticated using (auth.uid() is not null);', t || '_delete', t);
+end $$;
