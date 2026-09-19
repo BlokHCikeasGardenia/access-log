@@ -4,7 +4,7 @@ import { toasts, dismiss } from '@/lib/toast'
 
 <template>
   <Teleport to="body">
-    <div class="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-80 z-[60] flex flex-col gap-2">
+    <div class="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-4 right-4 md:left-auto md:right-4 md:w-80 z-[60] flex flex-col gap-2">
       <div
         v-for="t in toasts"
         :key="t.id"

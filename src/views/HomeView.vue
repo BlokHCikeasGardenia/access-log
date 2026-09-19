@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { notify } from '@/lib/toast'
+import SkeletonList from '@/components/SkeletonList.vue'
 
 interface GateLog {
   id: string
@@ -221,6 +222,10 @@ onMounted(async () => {
         </select>
       </div>
     </div>
+
+    <div v-if="error" class="bg-rose-50 border border-rose-200 text-rose-700 rounded p-4 text-sm mb-4">{{ error }}</div>
+
+    <SkeletonList v-if="loading" :rows="5" card />
 
     <div v-if="logs.length && filteredLogs.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm border-collapse">

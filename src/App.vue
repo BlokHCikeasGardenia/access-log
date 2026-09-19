@@ -19,11 +19,11 @@ async function handleLogout() {
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
-    <header v-if="auth.isAuthenticated" class="bg-white border-b border-slate-200">
+  <div class="min-h-screen flex flex-col pb-[env(safe-area-inset-bottom)]">
+    <header v-if="auth.isAuthenticated" class="sticky top-0 z-40 bg-white border-b border-slate-200">
       <div class="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4">
         <span class="font-bold text-indigo-600">Log Akses</span>
-        <button class="md:hidden ml-auto p-2 -mr-2" @click="mobileNavOpen = !mobileNavOpen" aria-label="Toggle menu">
+        <button class="md:hidden ml-auto min-w-[44px] min-h-[44px] flex items-center justify-center" @click="mobileNavOpen = !mobileNavOpen" aria-label="Toggle menu">
           <svg class="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path v-if="!mobileNavOpen" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
             <path v-else stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -42,11 +42,11 @@ async function handleLogout() {
         </div>
       </div>
       <div v-if="mobileNavOpen" class="md:hidden border-t border-slate-200 bg-white px-4 py-2 space-y-1">
-        <RouterLink to="/" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Beranda</RouterLink>
-        <RouterLink to="/residents" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Penghuni</RouterLink>
-        <RouterLink to="/cards" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Kartu</RouterLink>
-        <RouterLink to="/relationships" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Pairing</RouterLink>
-        <RouterLink to="/gate-sync" class="block px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Sinkronisasi Gate</RouterLink>
+        <RouterLink to="/" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Beranda</RouterLink>
+        <RouterLink to="/residents" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Penghuni</RouterLink>
+        <RouterLink to="/cards" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Kartu</RouterLink>
+        <RouterLink to="/relationships" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Pairing</RouterLink>
+        <RouterLink to="/gate-sync" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Sinkronisasi Gate</RouterLink>
         <div class="pt-2 border-t border-slate-100">
           <span class="block px-3 py-2 text-xs text-slate-500 truncate">{{ auth.user?.email }}</span>
           <button class="w-full text-left text-sm px-3 py-2 rounded hover:bg-slate-100 text-rose-600" @click="handleLogout">Keluar</button>

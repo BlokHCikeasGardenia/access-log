@@ -12,10 +12,13 @@ const emit = defineEmits<{ close: [] }>()
           <h2 class="font-semibold text-slate-800">{{ props.title }}</h2>
           <button class="text-slate-400 hover:text-slate-700 text-xl leading-none p-2 -mr-2 min-w-[44px] min-h-[44px] flex items-center justify-center" @click="emit('close')">&times;</button>
         </div>
-        <div class="px-5 py-4 overflow-auto flex-1">
+        <div class="px-5 py-4 overflow-auto flex-1 [&_input]:min-h-[44px] [&_select]:min-h-[44px] [&_textarea]:min-h-[44px]">
           <slot />
         </div>
-        <div v-if="$slots.footer" class="px-5 py-3 border-t border-slate-200 flex flex-col-reverse md:flex-row justify-end gap-2">
+        <div
+          v-if="$slots.footer"
+          class="px-5 py-3 border-t border-slate-200 flex flex-col-reverse md:flex-row justify-end gap-2 [&>button]:min-h-[44px] [&>button]:py-2.5"
+        >
           <slot name="footer" />
         </div>
       </div>

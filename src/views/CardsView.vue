@@ -6,6 +6,7 @@ import { notify } from '@/lib/toast'
 import { friendlyError, isUniqueViolation } from '@/lib/errors'
 import type { Card, GateAction } from '@/types'
 import Modal from '@/components/Modal.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 import { enqueueGateCommand, loadGateStatusByUid, gateStatusClass, gateStatusLabel } from '@/lib/gate-command'
 
 const cards = ref<Card[]>([])
@@ -377,12 +378,12 @@ onMounted(load)
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-8">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Kartu</h1>
         <p class="text-sm text-slate-500">Master kartu akses (UID, Label A, Label B, Blok, No Rumah).</p>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto">
         <button
           v-if="syncStats"
           class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-600"
@@ -391,16 +392,16 @@ onMounted(load)
           Sync: {{ syncStats.inserted }} masuk, {{ syncStats.skipped }} dilewati
         </button>
         <button
-          class="bg-emerald-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+          class="flex-1 sm:flex-none min-h-[44px] text-center bg-emerald-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
           :disabled="pulling || loading"
           @click="pullFromApi"
         >
           {{ pulling ? 'Menarik…' : 'Tarik Data' }}
         </button>
-        <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
+        <button class="flex-1 sm:flex-none min-h-[44px] text-center bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
           + Tambah Kartu
         </button>
-        <RouterLink to="/gate-sync" class="border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100 text-center">Sinkronisasi Gate</RouterLink>
+        <RouterLink to="/gate-sync" class="flex-1 sm:flex-none min-h-[44px] border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100 text-center">Sinkronisasi Gate</RouterLink>
       </div>
     </div>
 
@@ -427,7 +428,7 @@ onMounted(load)
       </div>
     </div>
 
-    <div v-if="loading || pulling" class="text-slate-500 text-sm">Memuat…</div>
+    <SkeletonList v-if="loading || pulling" :rows="4" card />
     <div v-else-if="cards.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
       Belum ada data kartu.
     </div>
@@ -533,8 +534,8 @@ onMounted(load)
 
     <Modal :open="showAdd" title="Tambah Kartu" @close="showAdd = false">
       <div class="flex gap-2 mb-4 text-sm">
-        <button class="px-3 py-1.5 rounded" :class="addTab === 'manual' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'manual'">Manual</button>
-        <button class="px-3 py-1.5 rounded" :class="addTab === 'upload' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'upload'">Upload .txt</button>
+        <button class="px-3 py-2.5 min-h-[44px] rounded" :class="addTab === 'manual' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'manual'">Manual</button>
+        <button class="px-3 py-2.5 min-h-[44px] rounded" :class="addTab === 'upload' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'upload'">Upload .txt</button>
       </div>
 
       <div v-if="addTab === 'manual'" class="space-y-3">
@@ -564,7 +565,7 @@ onMounted(load)
       <div v-else class="space-y-3">
         <p class="text-xs text-slate-500">Format pipe-separated: <code>UID|LabelA|LabelB|Blok|NoRumah</code> (kolom opsional setelah LabelB). Baris header otomatis dilewati.</p>
         <textarea v-model="uploadText" rows="8" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="56018067|171|25161|A|171"></textarea>
-        <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="previewUpload">Pratinjau</button>
+        <button class="text-sm px-3 py-2.5 min-h-[44px] rounded border border-slate-300 hover:bg-slate-100" @click="previewUpload">Pratinjau</button>
         <div v-if="uploadPreview" class="text-sm">
           <p class="text-emerald-600">{{ uploadPreview.ok }} baris valid.</p>
           <ul v-if="uploadPreview.errors.length" class="mt-1 text-rose-600 list-disc list-inside text-xs max-h-32 overflow-auto">

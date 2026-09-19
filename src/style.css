@@ -2,8 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  color-scheme: light;
+@layer base {
+  /* Hilangkan highlight blink saat tap di browser mobile. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Cegah zoom otomatis iOS Safari saat input difokuskan: Safari mem-zoom
+     bila font-size kontrol < 16px. Hanya berlaku di bawah breakpoint `md`
+     agar desktop tetap memakai text-sm (14px) yang ringkas. */
+  @media (max-width: 767.98px) {
+    input,
+    select,
+    textarea {
+      font-size: 1rem !important;
+    }
+  }
 }
 
 body {

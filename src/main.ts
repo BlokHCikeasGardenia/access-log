@@ -15,3 +15,14 @@ if (spaRedirect) {
 }
 
 createApp(App).use(createPinia()).use(router).mount('#app')
+
+// Daftarkan service worker minimal (installability PWA, tanpa caching).
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(import.meta.env.BASE_URL + 'sw.js')
+      .catch(() => {
+        /* Registrasi SW bersifat best-effort; abaikan kegagalan (mis. dev server). */
+      })
+  })
+}

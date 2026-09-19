@@ -6,6 +6,7 @@ import { notify } from '@/lib/toast'
 import type { Resident } from '@/types'
 import { enqueueGateCommand } from '@/lib/gate-command'
 import Modal from '@/components/Modal.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 
 const residents = ref<Resident[]>([])
 const loading = ref(false)
@@ -204,12 +205,12 @@ onMounted(load)
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-8">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Penghuni</h1>
         <p class="text-sm text-slate-500">Daftar penghuni komplek.</p>
       </div>
-      <button class="bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
+      <button class="w-full sm:w-auto text-center min-h-[44px] bg-indigo-600 text-white rounded px-4 py-2 text-sm font-medium hover:bg-indigo-700" @click="openAdd">
         + Tambah Penghuni
       </button>
     </div>
@@ -258,7 +259,7 @@ onMounted(load)
         <p v-if="filteredResidents.length !== residents.length" class="text-xs text-slate-500 mt-2">{{ filteredResidents.length }} dari {{ residents.length }} penghuni ditampilkan.</p>
       </div>
 
-      <div v-if="loading" class="text-slate-500 text-sm">Memuat…</div>
+      <SkeletonList v-if="loading" :rows="4" card />
       <div v-else-if="residents.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
         Belum ada data penghuni.
       </div>
@@ -309,8 +310,8 @@ onMounted(load)
 
     <Modal :open="showAdd" title="Tambah Penghuni" @close="showAdd = false">
       <div class="flex gap-2 mb-4 text-sm">
-        <button class="px-3 py-1.5 rounded" :class="addTab === 'manual' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'manual'">Manual</button>
-        <button class="px-3 py-1.5 rounded" :class="addTab === 'upload' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'upload'">Upload .txt</button>
+        <button class="px-3 py-2.5 min-h-[44px] rounded" :class="addTab === 'manual' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'manual'">Manual</button>
+        <button class="px-3 py-2.5 min-h-[44px] rounded" :class="addTab === 'upload' ? 'bg-indigo-600 text-white' : 'bg-slate-100'" @click="addTab = 'upload'">Upload .txt</button>
       </div>
 
       <div v-if="addTab === 'manual'" class="space-y-3">
@@ -335,7 +336,7 @@ onMounted(load)
         <p class="text-xs text-slate-500">Format TAB-separated: <code>Blok&lt;TAB&gt;Nama</code>. Baris header otomatis dilewati.</p>
         <textarea v-model="uploadText" rows="8" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="3/1&#9;Jono"></textarea>
         <div class="flex gap-2">
-          <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="previewUpload">Pratinjau</button>
+          <button class="text-sm px-3 py-2.5 min-h-[44px] rounded border border-slate-300 hover:bg-slate-100" @click="previewUpload">Pratinjau</button>
         </div>
         <div v-if="uploadPreview" class="text-sm">
           <p class="text-emerald-600">{{ uploadPreview.ok }} baris valid.</p>

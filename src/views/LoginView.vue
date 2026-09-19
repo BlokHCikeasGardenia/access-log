@@ -44,7 +44,7 @@ async function handleSubmit() {
           <label class="block text-sm font-medium mb-1">Password</label>
           <input v-model="password" type="password" autocomplete="current-password" class="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
         </div>
-        <button type="submit" :disabled="submitting" class="w-full bg-indigo-600 text-white rounded py-2 text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
+        <button type="submit" :disabled="submitting" class="w-full bg-indigo-600 text-white rounded py-2.5 min-h-[44px] text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
           {{ submitting ? 'Memproses…' : 'Masuk' }}
         </button>
       </form>

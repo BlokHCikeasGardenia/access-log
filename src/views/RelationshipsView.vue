@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { notify } from '@/lib/toast'
 import { CARD_STATUSES, type Card, type CardStatus, type Resident, type ResidentWithCards } from '@/types'
 import { enqueueGateCommand } from '@/lib/gate-command'
+import SkeletonList from '@/components/SkeletonList.vue'
 
 const groups = ref<ResidentWithCards[]>([])
 const unassigned = ref<Card[]>([])
@@ -153,7 +154,7 @@ onMounted(load)
       </div>
     </div>
 
-    <div v-if="loading" class="text-slate-500 text-sm">Memuat…</div>
+    <SkeletonList v-if="loading" :rows="4" card />
     <div v-else-if="groups.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
       Belum ada data penghuni. Tambah penghuni terlebih dahulu.
     </div>
@@ -234,7 +235,7 @@ onMounted(load)
                     <button
                       v-for="c in filteredUnassigned(g.resident.id)"
                       :key="c.id"
-                      class="w-full text-left px-3 py-1.5 hover:bg-slate-100 text-sm flex gap-3"
+                      class="w-full text-left px-3 py-1.5 hover:bg-slate-100 text-sm flex flex-wrap gap-x-3 gap-y-0.5"
                       :disabled="saving"
                       @click="assignCard(c, g.resident.id)"
                     >
@@ -264,7 +265,7 @@ onMounted(load)
 
     <div v-if="filteredGroups.length" class="md:hidden space-y-4">
       <div v-for="g in filteredGroups" :key="g.resident.id" class="bg-white rounded border border-slate-200 p-4">
-        <div class="flex items-center justify-between mb-2">
+        <div class="flex items-start justify-between gap-2 mb-2">
           <div>
             <span class="font-semibold text-slate-800">{{ g.resident.blok }}</span>
             <span class="text-sm text-slate-600 ml-2">{{ g.resident.nama }}</span>
@@ -285,7 +286,7 @@ onMounted(load)
             <button
               v-for="c in filteredUnassigned(g.resident.id)"
               :key="c.id"
-              class="w-full text-left px-3 py-2 hover:bg-slate-100 text-sm flex gap-3"
+              class="w-full text-left px-3 py-2.5 min-h-[44px] hover:bg-slate-100 text-sm flex flex-wrap gap-x-3 gap-y-0.5"
               :disabled="saving"
               @click="assignCard(c, g.resident.id)"
             >

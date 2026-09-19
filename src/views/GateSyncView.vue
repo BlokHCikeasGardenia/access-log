@@ -11,6 +11,7 @@ import {
   gateStatusClass,
   gateStatusLabel,
 } from '@/lib/gate-command'
+import SkeletonList from '@/components/SkeletonList.vue'
 
 const commands = ref<GateCommand[]>([])
 const loading = ref(false)
@@ -114,12 +115,12 @@ onUnmounted(() => {
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-8">
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Sinkronisasi Gate</h1>
         <p class="text-sm text-slate-500">Antrean command kartu ke reader gerbang dan feedback-nya.</p>
       </div>
-      <button class="border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100" :disabled="loading" @click="load">
+      <button class="w-full sm:w-auto text-center min-h-[44px] border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100" :disabled="loading" @click="load">
         {{ loading ? 'Memuat…' : 'Refresh' }}
       </button>
     </div>
@@ -170,7 +171,7 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <div v-if="loading && commands.length === 0" class="text-slate-500 text-sm">Memuat…</div>
+    <SkeletonList v-if="loading && commands.length === 0" :rows="4" card />
     <div v-else-if="commands.length === 0" class="bg-white rounded border border-slate-200 p-8 text-center text-slate-500">
       Belum ada command gate.
     </div>
