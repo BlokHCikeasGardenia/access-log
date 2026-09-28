@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { notify } from '@/lib/toast'
-import { todayJakartaISO, daysAgoJakartaISO, formatDateTimeJakarta } from '@/lib/time'
+import { todayJakartaISO, daysAgoJakartaISO } from '@/lib/time'
 import SkeletonList from '@/components/SkeletonList.vue'
 
 interface GateLog {
@@ -97,18 +97,10 @@ async function loadResidentsMap() {
   }
 }
 
-// Format log.tgl (dari API gate) ke zona Jakarta untuk tampilan.
-// Jika formatnya ISO-like (mengandung 'T' atau '+00'), konversi ke WIB.
-// Jika tidak dikenali, tampilkan apa adanya.
+// log.tgl berasal dari API gate eksternal yang sudah mengembalikan
+// waktu dalam zona WIB. Tidak perlu konversi — tampilkan apa adanya.
 function formatLogTgl(tgl: string): string {
-  try {
-    const d = new Date(tgl)
-    if (isNaN(d.getTime())) return tgl
-    const formatted = formatDateTimeJakarta(d.toISOString())
-    return formatted === '—' ? tgl : formatted
-  } catch {
-    return tgl
-  }
+  return tgl || '—'
 }
 
 async function loadLogs() {

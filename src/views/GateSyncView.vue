@@ -51,8 +51,8 @@ function feedbackPesan(c: GateCommand): string {
   const d = c.feedback_json?.data as Record<string, unknown> | undefined
   const pesan = d?.pesan as string | undefined
   const tgl = d?.tgl_eksekusi as string | undefined
-  const formattedTgl = tgl ? formatDateTimeJakarta(tgl) : null
-  return [pesan, formattedTgl ? `Eksekusi: ${formattedTgl}` : null].filter(Boolean).join(' · ')
+  // tgl_eksekusi berasal dari API gate yang sudah WIB — tampilkan apa adanya.
+  return [pesan, tgl ? `Eksekusi: ${tgl}` : null].filter(Boolean).join(' · ')
 }
 
 async function retry(c: GateCommand) {
