@@ -12,6 +12,7 @@ import {
   gateStatusLabel,
 } from '@/lib/gate-command'
 import SkeletonList from '@/components/SkeletonList.vue'
+import { formatDateTimeJakarta } from '@/lib/time'
 
 const commands = ref<GateCommand[]>([])
 const loading = ref(false)
@@ -50,7 +51,8 @@ function feedbackPesan(c: GateCommand): string {
   const d = c.feedback_json?.data as Record<string, unknown> | undefined
   const pesan = d?.pesan as string | undefined
   const tgl = d?.tgl_eksekusi as string | undefined
-  return [pesan, tgl ? `Eksekusi: ${tgl}` : null].filter(Boolean).join(' · ')
+  const formattedTgl = tgl ? formatDateTimeJakarta(tgl) : null
+  return [pesan, formattedTgl ? `Eksekusi: ${formattedTgl}` : null].filter(Boolean).join(' · ')
 }
 
 async function retry(c: GateCommand) {
@@ -192,7 +194,7 @@ onUnmounted(() => {
         </thead>
         <tbody class="divide-y divide-slate-100">
           <tr v-for="c in commands" :key="c.id">
-            <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{{ c.created_at?.replace('T', ' ').slice(0, 19) }}</td>
+            <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{{ formatDateTimeJakarta(c.created_at) }}</td>
             <td class="px-4 py-3 font-medium">{{ c.action }}</td>
             <td class="px-4 py-3 font-mono">{{ c.uid }}</td>
             <td class="px-4 py-3">{{ c.blok || '—' }}</td>
@@ -224,7 +226,7 @@ onUnmounted(() => {
           <span class="inline-block px-2 py-0.5 rounded-full text-xs" :class="gateStatusClass(c.status)">{{ gateStatusLabel(c.status) }}</span>
         </div>
         <p class="text-xs text-slate-500">{{ c.action }} · Blok {{ c.blok || '—' }} · No {{ c.no_rumah || '—' }}</p>
-        <p class="text-xs text-slate-400 mt-0.5">{{ c.created_at?.replace('T', ' ').slice(0, 19) }} · percobaan {{ c.attempt_count }}</p>
+        <p class="text-xs text-slate-400 mt-0.5">{{ formatDateTimeJakarta(c.created_at) }} · percobaan {{ c.attempt_count }}</p>
         <p v-if="c.status === 'DONE'" class="text-xs text-emerald-700 mt-1">{{ feedbackPesan(c) }}</p>
         <p v-else-if="c.status === 'FAILED'" class="text-xs text-rose-700 mt-1">{{ c.error_message || feedbackPesan(c) }}</p>
         <div class="mt-2 flex gap-2">

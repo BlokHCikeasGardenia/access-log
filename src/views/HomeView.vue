@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { notify } from '@/lib/toast'
+import { todayJakartaISO, daysAgoJakartaISO, formatDateTimeJakarta } from '@/lib/time'
 import SkeletonList from '@/components/SkeletonList.vue'
 
 interface GateLog {
@@ -50,17 +51,9 @@ const pagedLogs = computed(() => {
   return filteredLogs.value.slice(start, start + pageSize.value)
 })
 
-// Date range controls (default: last 30 days up to today).
-function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-function defaultStart(): string {
-  const d = new Date()
-  d.setDate(d.getDate() - 30)
-  return d.toISOString().slice(0, 10)
-}
-const tanggalAwal = ref(defaultStart())
-const tanggalAkhir = ref(todayISO())
+// Date range controls (default: last 30 days up to today, in Jakarta timezone).
+const tanggalAwal = ref(daysAgoJakartaISO(30))
+const tanggalAkhir = ref(todayJakartaISO())
 
 // Map card UID -> resident label, loaded from Supabase for name matching.
 const wargaByUid = ref<Record<string, string>>({})
@@ -101,6 +94,20 @@ async function loadResidentsMap() {
     kartuByUid.value = kartuMap
   } catch (e: any) {
     console.error('[Log Akses] Gagal memuat data penghuni/kartu:', e?.message || e)
+  }
+}
+
+// Format log.tgl (dari API gate) ke zona Jakarta untuk tampilan.
+// Jika formatnya ISO-like (mengandung 'T' atau '+00'), konversi ke WIB.
+// Jika tidak dikenali, tampilkan apa adanya.
+function formatLogTgl(tgl: string): string {
+  try {
+    const d = new Date(tgl)
+    if (isNaN(d.getTime())) return tgl
+    const formatted = formatDateTimeJakarta(d.toISOString())
+    return formatted === '—' ? tgl : formatted
+  } catch {
+    return tgl
   }
 }
 
@@ -244,7 +251,7 @@ onMounted(async () => {
             class="border border-slate-200"
             :class="log.arah === 'IN' ? 'bg-emerald-50' : 'bg-amber-50'"
           >
-            <td class="border border-slate-200 px-3 py-1.5 whitespace-nowrap">{{ log.tgl }}</td>
+            <td class="border border-slate-200 px-3 py-1.5 whitespace-nowrap">{{ formatLogTgl(log.tgl) }}</td>
             <td class="border border-slate-200 px-3 py-1.5 font-semibold">{{ log.arah }}</td>
             <td class="border border-slate-200 px-3 py-1.5 font-mono">{{ log.kartu }}</td>
             <td class="border border-slate-200 px-3 py-1.5">{{ log.warga || '—' }}</td>
@@ -272,7 +279,7 @@ onMounted(async () => {
         :class="log.arah === 'IN' ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-500'"
       >
         <div class="flex items-center justify-between gap-2 mb-2">
-          <span class="text-sm font-medium text-slate-800">{{ log.tgl }}</span>
+          <span class="text-sm font-medium text-slate-800">{{ formatLogTgl(log.tgl) }}</span>
           <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold" :class="log.arah === 'IN' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'">{{ log.arah }}</span>
         </div>
         <div class="text-sm text-slate-600 space-y-1">
