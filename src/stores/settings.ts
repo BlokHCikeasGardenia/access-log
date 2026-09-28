@@ -15,8 +15,8 @@ interface SettingsSnapshot {
 }
 
 const DEFAULTS: SettingsSnapshot = {
-  autoCommandGate: true,
-  autoPollGate: true,
+  autoCommandGate: false,
+  autoPollGate: false,
 }
 
 function load(): SettingsSnapshot {
