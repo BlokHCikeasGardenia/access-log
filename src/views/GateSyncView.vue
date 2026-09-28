@@ -13,9 +13,11 @@ import {
 } from '@/lib/gate-command'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { formatDateTimeJakarta } from '@/lib/time'
+import { useSettingsStore } from '@/stores/settings'
 
 const commands = ref<GateCommand[]>([])
 const loading = ref(false)
+const settings = useSettingsStore()
 
 const mUid = ref('')
 const mAction = ref<GateAction>('ADD')
@@ -99,15 +101,18 @@ let timer: ReturnType<typeof setInterval> | undefined
 
 onMounted(async () => {
   await load()
-  void resumePendingGateCommands()
-  timer = setInterval(async () => {
-    if (commands.value.some((c) => activeStatuses.includes(c.status))) {
-      for (const c of commands.value.filter((x) => activeStatuses.includes(x.status))) {
-        void checkGateResult(c.id)
+  if (settings.autoCommandGate) {
+    void resumePendingGateCommands()
+    timer = setInterval(async () => {
+      if (!settings.autoPollGate) return
+      if (commands.value.some((c) => activeStatuses.includes(c.status))) {
+        for (const c of commands.value.filter((x) => activeStatuses.includes(x.status))) {
+          void checkGateResult(c.id)
+        }
+        setTimeout(load, 1500)
       }
-      setTimeout(load, 1500)
-    }
-  }, 20000)
+    }, 20000)
+  }
 })
 
 onUnmounted(() => {
@@ -117,14 +122,31 @@ onUnmounted(() => {
 
 <template>
   <div class="max-w-6xl mx-auto px-4 py-8">
-    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
       <div>
         <h1 class="text-2xl font-bold text-slate-800">Sinkronisasi Gate</h1>
         <p class="text-sm text-slate-500">Antrean command kartu ke reader gerbang dan feedback-nya.</p>
       </div>
-      <button class="w-full sm:w-auto text-center min-h-[44px] border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100" :disabled="loading" @click="load">
-        {{ loading ? 'Memuat…' : 'Refresh' }}
-      </button>
+      <div class="flex items-center gap-3">
+        <label class="flex items-center gap-2 cursor-pointer" title="Auto-refresh tiap 20 detik untuk command aktif">
+          <div class="relative inline-block w-12 h-6">
+            <input type="checkbox" v-model="settings.autoPollGate" class="opacity-0 w-0 h-0" />
+            <div
+              :class="settings.autoPollGate ? 'bg-emerald-600' : 'bg-slate-300'"
+              class="absolute inset-0 rounded-full transition-colors duration-200"
+            >
+              <div
+                :class="settings.autoPollGate ? 'translate-x-6' : 'translate-x-1'"
+                class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200"
+              ></div>
+            </div>
+          </div>
+          <span class="text-xs text-slate-600">Auto Refresh</span>
+        </label>
+        <button class="w-full sm:w-auto text-center min-h-[44px] border border-slate-300 rounded px-4 py-2 text-sm hover:bg-slate-100" :disabled="loading" @click="load">
+          {{ loading ? 'Memuat…' : 'Refresh' }}
+        </button>
+      </div>
     </div>
 
     <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

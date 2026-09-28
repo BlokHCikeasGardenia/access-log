@@ -2,9 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useSettingsStore } from '@/stores/settings'
 import Toaster from '@/components/Toaster.vue'
 
 const auth = useAuthStore()
+const settings = useSettingsStore()
 const router = useRouter()
 const mobileNavOpen = ref(false)
 
@@ -37,21 +39,51 @@ async function handleLogout() {
           <RouterLink to="/gate-sync" class="px-3 py-2 rounded hover:bg-slate-100" active-class="bg-slate-100 font-medium">Sinkronisasi Gate</RouterLink>
         </nav>
         <div class="hidden md:flex ml-auto items-center gap-3">
+          <label class="flex items-center gap-2 cursor-pointer" title="Auto kirim command ke gate saat kartu/penghuni ditambah/edit/hapus">
+            <div class="relative inline-block w-12 h-6 flex-shrink-0">
+              <input type="checkbox" v-model="settings.autoCommandGate" class="opacity-0 w-0 h-0" />
+              <div
+                :class="settings.autoCommandGate ? 'bg-emerald-600' : 'bg-slate-300'"
+                class="absolute inset-0 rounded-full transition-colors duration-200"
+              >
+                <div
+                  :class="settings.autoCommandGate ? 'translate-x-6' : 'translate-x-1'"
+                  class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200"
+                ></div>
+              </div>
+            </div>
+            <span class="text-xs text-slate-600">Auto Gatе</span>
+          </label>
           <span class="text-xs text-slate-500 truncate max-w-[200px]">{{ auth.user?.email }}</span>
           <button class="text-sm px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-100" @click="handleLogout">Keluar</button>
         </div>
       </div>
-      <div v-if="mobileNavOpen" class="md:hidden border-t border-slate-200 bg-white px-4 py-2 space-y-1">
-        <RouterLink to="/" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Beranda</RouterLink>
-        <RouterLink to="/residents" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Penghuni</RouterLink>
-        <RouterLink to="/cards" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Kartu</RouterLink>
-        <RouterLink to="/relationships" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Pairing</RouterLink>
-        <RouterLink to="/gate-sync" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Sinkronisasi Gate</RouterLink>
-        <div class="pt-2 border-t border-slate-100">
-          <span class="block px-3 py-2 text-xs text-slate-500 truncate">{{ auth.user?.email }}</span>
-          <button class="w-full text-left text-sm px-3 py-2 rounded hover:bg-slate-100 text-rose-600" @click="handleLogout">Keluar</button>
+        <div v-if="mobileNavOpen" class="md:hidden border-t border-slate-200 bg-white px-4 py-2 space-y-1">
+          <label class="flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-slate-100 rounded">
+            <div class="relative inline-block w-12 h-6">
+              <input type="checkbox" v-model="settings.autoCommandGate" class="opacity-0 w-0 h-0" />
+              <div
+                :class="settings.autoCommandGate ? 'bg-emerald-600' : 'bg-slate-300'"
+                class="absolute inset-0 rounded-full transition-colors duration-200"
+              >
+                <div
+                  :class="settings.autoCommandGate ? 'translate-x-6' : 'translate-x-1'"
+                  class="absolute top-1 w-4 h-4 bg-white rounded-full shadow transform transition-transform duration-200"
+                ></div>
+              </div>
+            </div>
+            <span>Auto Gatе</span>
+          </label>
+          <RouterLink to="/" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Beranda</RouterLink>
+          <RouterLink to="/residents" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Penghuni</RouterLink>
+          <RouterLink to="/cards" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Kartu</RouterLink>
+          <RouterLink to="/relationships" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Pairing</RouterLink>
+          <RouterLink to="/gate-sync" class="flex items-center min-h-[44px] px-3 py-2 rounded hover:bg-slate-100 text-sm" active-class="bg-slate-100 font-medium" @click="mobileNavOpen = false">Sinkronisasi Gate</RouterLink>
+          <div class="pt-2 border-t border-slate-100">
+            <span class="block px-3 py-2 text-xs text-slate-500 truncate">{{ auth.user?.email }}</span>
+            <button class="w-full text-left text-sm px-3 py-2 rounded hover:bg-slate-100 text-rose-600" @click="handleLogout">Keluar</button>
+          </div>
         </div>
-      </div>
     </header>
     <main class="flex-1">
       <RouterView />

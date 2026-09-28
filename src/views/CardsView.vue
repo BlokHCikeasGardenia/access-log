@@ -8,6 +8,7 @@ import type { Card, GateAction } from '@/types'
 import Modal from '@/components/Modal.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { enqueueGateCommand, loadGateStatusByUid, gateStatusClass, gateStatusLabel } from '@/lib/gate-command'
+import { useSettingsStore } from '@/stores/settings'
 
 const cards = ref<Card[]>([])
 const residents = ref<Record<string, string>>({})
@@ -57,6 +58,7 @@ const deleteWarn = ref<string | null>(null)
 const deleting = ref(false)
 
 const gateStatus = ref<Record<string, import('@/types').GateCommand>>({})
+const settings = useSettingsStore()
 
 const showGate = ref(false)
 const gateTarget = ref<Card | null>(null)
@@ -331,14 +333,17 @@ async function submitEdit() {
     return
   }
   notify('Label kartu diperbarui.', 'success')
-  // Blok / no rumah berubah → sinkronkan lokasi kartu di reader gate.
-  if ((editBlok.value.trim() || '') !== oldBlok || (editNoRumah.value.trim() || '') !== oldNoRumah) {
+  // Blok / no rumah berubah → sinkronkan lokasi kartu di reader gate
+  // (hanya ketika auto-command aktif).
+  if (settings.autoCommandGate && ((editBlok.value.trim() || '') !== oldBlok || (editNoRumah.value.trim() || '') !== oldNoRumah)) {
     void enqueueGateCommand('UPDATE', {
       uid: editTarget.value.uid,
       blok: editBlok.value.trim() || null,
       no_rumah: editNoRumah.value.trim() || null,
     })
     notify('Perubahan lokasi dikirim ke gate (UPDATE).', 'info')
+  } else if (!settings.autoCommandGate) {
+    notify('Auto-command non-aktif. Kirim UPDATE manual dari halaman Sinkronisasi Gate.', 'info')
   }
   showEdit.value = false
   load()
@@ -356,12 +361,15 @@ async function openDelete(c: Card) {
 async function confirmDelete() {
   if (!deleteTarget.value) return
   deleting.value = true
-  // Cabut kartu dari reader gate sebelum data lokal dihapus.
-  await enqueueGateCommand('DELETE', {
-    uid: deleteTarget.value.uid,
-    blok: deleteTarget.value.blok,
-    no_rumah: deleteTarget.value.no_rumah,
-  })
+  // Cabut kartu dari reader gate sebelum data lokal dihapus
+  // (hanya ketika auto-command aktif).
+  if (settings.autoCommandGate) {
+    await enqueueGateCommand('DELETE', {
+      uid: deleteTarget.value.uid,
+      blok: deleteTarget.value.blok,
+      no_rumah: deleteTarget.value.no_rumah,
+    })
+  }
   const { error } = await supabase.from('cards').delete().eq('id', deleteTarget.value.id)
   deleting.value = false
   if (error) {

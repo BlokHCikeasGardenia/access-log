@@ -5,11 +5,13 @@ import { parseResidents } from '@/lib/parse'
 import { notify } from '@/lib/toast'
 import type { Resident } from '@/types'
 import { enqueueGateCommand } from '@/lib/gate-command'
+import { useSettingsStore } from '@/stores/settings'
 import Modal from '@/components/Modal.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 
 const residents = ref<Resident[]>([])
 const loading = ref(false)
+const settings = useSettingsStore()
 
 const filterQuery = ref('')
 const filterBlok = ref('')
@@ -176,7 +178,12 @@ async function confirmDelete() {
     .select('*')
     .eq('resident_id', deleteTarget.value.id)
   for (const card of (linked ?? []) as import('@/types').Card[]) {
-    void enqueueGateCommand('DELETE', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+    if (settings.autoCommandGate) {
+      void enqueueGateCommand('DELETE', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+    }
+  }
+  if (linked && linked.length > 0 && !settings.autoCommandGate) {
+    notify('Auto-command non-aktif. Cabinet kartu yang terpasang belum dikirim ke gate. Kirim manual dari Sinkronisasi Gate.', 'info')
   }
   if (linked && linked.length > 0) {
     const { error: unassignErr } = await supabase

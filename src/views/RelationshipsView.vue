@@ -4,11 +4,13 @@ import { supabase } from '@/lib/supabase'
 import { notify } from '@/lib/toast'
 import { CARD_STATUSES, type Card, type CardStatus, type Resident, type ResidentWithCards } from '@/types'
 import { enqueueGateCommand } from '@/lib/gate-command'
+import { useSettingsStore } from '@/stores/settings'
 import SkeletonList from '@/components/SkeletonList.vue'
 
 const groups = ref<ResidentWithCards[]>([])
 const unassigned = ref<Card[]>([])
 const loading = ref(false)
+const settings = useSettingsStore()
 
 const adding = reactive<Record<string, boolean>>({})
 const query = reactive<Record<string, string>>({})
@@ -75,8 +77,13 @@ async function assignCard(card: Card, residentId: string) {
     return
   }
   notify(`Kartu ${card.uid} dipasang.`, 'success')
-  // Daftarkan kartu ke reader gate (best-effort, tidak memblokir pairing).
-  void enqueueGateCommand('ADD', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+  // Daftarkan kartu ke reader gate (best-effort, tidak memblokir pairing)
+  // hanya ketika auto-command aktif.
+  if (settings.autoCommandGate) {
+    void enqueueGateCommand('ADD', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+  } else {
+    notify('Auto-command non-aktif. Kirim ke gate manual dari halaman Sinkronisasi Gate.', 'info')
+  }
   adding[residentId] = false
   query[residentId] = ''
   load()
@@ -101,8 +108,12 @@ async function unassignCard(card: Card) {
     return
   }
   notify(`Kartu ${card.uid} dilepas.`, 'success')
-  // Cabut kartu dari reader gate (best-effort).
-  void enqueueGateCommand('DELETE', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+  // Cabut kartu dari reader gate (best-effort) hanya ketika auto-command aktif.
+  if (settings.autoCommandGate) {
+    void enqueueGateCommand('DELETE', { uid: card.uid, blok: card.blok, no_rumah: card.no_rumah })
+  } else {
+    notify('Auto-command non-aktif. Kirim ke gate manual dari halaman Sinkronisasi Gate.', 'info')
+  }
   load()
 }
 
