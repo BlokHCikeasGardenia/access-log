@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
+import { uidToLabel10Digit } from '@/lib/label-decode'
 import { notify } from '@/lib/toast'
 import { todayJakartaISO, daysAgoJakartaISO } from '@/lib/time'
 import SkeletonList from '@/components/SkeletonList.vue'
+import { useTableSort } from '@/composables/useTableSort'
 
 interface GateLog {
   id: string
@@ -13,7 +15,7 @@ interface GateLog {
 }
 
 // A row enriched with the matched resident (may be null if card not linked)
-// and the full card identity (uid + label A + label B).
+// and the full card identity (uid | label 10 digit | label A | label B).
 interface LogRow extends GateLog {
   warga: string | null
   kartu: string
@@ -30,21 +32,27 @@ const pageSize = ref(10)
 const currentPage = ref(1)
 
 // Filter logs by search text (matches date, card id, resident) and direction.
-const filteredLogs = computed(() => {
-  const q = searchInput.value.trim().toLowerCase()
-  return logs.value.filter((log) => {
-    if (filterArah.value !== 'all' && log.arah !== filterArah.value) return false
-    if (!q) return true
-    return (
-      log.tgl.toLowerCase().includes(q) ||
-      log.id_kartu.toLowerCase().includes(q) ||
-      log.kartu.toLowerCase().includes(q) ||
-      (log.warga || '').toLowerCase().includes(q)
-    )
+  const filteredLogs = computed(() => {
+    const q = searchInput.value.trim().toLowerCase()
+    return logs.value.filter((log) => {
+      if (filterArah.value !== 'all' && log.arah !== filterArah.value) return false
+      if (!q) return true
+      return (
+        log.tgl.toLowerCase().includes(q) ||
+        log.id_kartu.toLowerCase().includes(q) ||
+        log.kartu.toLowerCase().includes(q) ||
+        (log.warga || '').toLowerCase().includes(q)
+      )
+    })
   })
-})
 
-const totalPages = computed(() => Math.max(1, Math.ceil(filteredLogs.value.length / pageSize.value)))
+const {
+  sortedData: sortedLogs,
+  toggleSort: toggleLogSort,
+  getSortIcon: getLogSortIcon,
+} = useTableSort(filteredLogs)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(sortedLogs.value.length / pageSize.value)))
 
 const pagedLogs = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
@@ -88,7 +96,13 @@ async function loadResidentsMap() {
       const uid = (c.uid as string).trim()
       const label = c.resident_id ? resMap.get(c.resident_id) : undefined
       if (label) map[uid] = label
-      kartuMap[uid] = [uid, c.label_a || '', c.label_b || ''].join(' | ')
+      let label10Digit = '—'
+      try {
+        label10Digit = uidToLabel10Digit(BigInt(uid))
+      } catch {
+        /* keep '—' */
+      }
+      kartuMap[uid] = [uid, label10Digit, c.label_a || '', c.label_b || ''].join(' | ')
     }
     wargaByUid.value = map
     kartuByUid.value = kartuMap
@@ -226,14 +240,22 @@ onMounted(async () => {
 
     <SkeletonList v-if="loading" :rows="5" card />
 
-    <div v-if="logs.length && filteredLogs.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
+<div v-if="logs.length && sortedLogs.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm border-collapse">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
-            <th class="border border-slate-200 px-3 py-2 font-medium">Tanggal &amp; Jam</th>
-            <th class="border border-slate-200 px-3 py-2 font-medium">Arah</th>
-            <th class="border border-slate-200 px-3 py-2 font-medium">ID Kartu</th>
-            <th class="border border-slate-200 px-3 py-2 font-medium">Nama Penghuni</th>
+            <th class="border border-slate-200 px-3 py-2 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleLogSort('tgl')">
+              <div class="flex items-center gap-1">Tanggal & Jam <span class="text-xs">{{ getLogSortIcon('tgl') }}</span></div>
+            </th>
+            <th class="border border-slate-200 px-3 py-2 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleLogSort('arah')">
+              <div class="flex items-center gap-1">Arah <span class="text-xs">{{ getLogSortIcon('arah') }}</span></div>
+            </th>
+            <th class="border border-slate-200 px-3 py-2 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleLogSort('id_kartu')">
+              <div class="flex items-center gap-1">ID Kartu <span class="text-xs">{{ getLogSortIcon('id_kartu') }}</span></div>
+            </th>
+            <th class="border border-slate-200 px-3 py-2 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleLogSort('warga')">
+              <div class="flex items-center gap-1">Nama Penghuni <span class="text-xs">{{ getLogSortIcon('warga') }}</span></div>
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -245,14 +267,14 @@ onMounted(async () => {
           >
             <td class="border border-slate-200 px-3 py-1.5 whitespace-nowrap">{{ formatLogTgl(log.tgl) }}</td>
             <td class="border border-slate-200 px-3 py-1.5 font-semibold">{{ log.arah }}</td>
-            <td class="border border-slate-200 px-3 py-1.5 font-mono">{{ log.kartu }}</td>
+            <td class="border border-slate-200 px-3 py-1.5 font-mono text-xs">{{ log.kartu }}</td>
             <td class="border border-slate-200 px-3 py-1.5">{{ log.warga || '—' }}</td>
           </tr>
         </tbody>
       </table>
 
       <!-- Pagination (only when more rows than a single page). -->
-      <div v-if="filteredLogs.length > pageSize" class="flex flex-col md:flex-row md:items-center justify-between p-3 border-t border-slate-200 text-sm gap-3">
+      <div v-if="sortedLogs.length > pageSize" class="flex flex-col md:flex-row md:items-center justify-between p-3 border-t border-slate-200 text-sm gap-3">
         <div class="flex flex-wrap gap-2">
           <button class="px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px]" :disabled="currentPage === 1" @click="goToPage(1)">Awal</button>
           <button class="px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px]" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">Prev</button>
@@ -263,7 +285,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div v-if="logs.length && filteredLogs.length" class="md:hidden space-y-3">
+    <div v-if="logs.length && sortedLogs.length" class="md:hidden space-y-3">
       <div
         v-for="log in pagedLogs"
         :key="log.id"

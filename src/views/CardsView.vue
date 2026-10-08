@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { supabase } from '@/lib/supabase'
 import { parseCards } from '@/lib/parse'
+import { labelToUid, uidToLabelA, uidToLabelB, uidToLabel10Digit, formatLabelCombined, isValidLabel10Digit } from '@/lib/label-decode'
 import { notify } from '@/lib/toast'
 import { friendlyError, isUniqueViolation } from '@/lib/errors'
 import type { Card, GateAction } from '@/types'
@@ -9,6 +10,7 @@ import Modal from '@/components/Modal.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { enqueueGateCommand, loadGateStatusByUid, gateStatusClass, gateStatusLabel } from '@/lib/gate-command'
 import { useSettingsStore } from '@/stores/settings'
+import { useTableSort } from '@/composables/useTableSort'
 
 const cards = ref<Card[]>([])
 const residents = ref<Record<string, string>>({})
@@ -20,6 +22,7 @@ const CARD_LIST_URL = (import.meta.env.VITE_SUPABASE_EDGE_CARD_LIST as string) |
 
 const showAdd = ref(false)
 const addTab = ref<'manual' | 'upload'>('manual')
+const label10Digit = ref('')
 const uid = ref('')
 const labelA = ref('')
 const labelB = ref('')
@@ -51,6 +54,16 @@ const editLabelA = ref('')
 const editLabelB = ref('')
 const editBlok = ref('')
 const editNoRumah = ref('')
+
+/** Computed Label 10 Digit for the card being edited. */
+const editLabel10Digit = computed(() => {
+  if (!editTarget.value) return '—'
+  try {
+    return uidToLabel10Digit(BigInt(editTarget.value.uid))
+  } catch {
+    return '—'
+  }
+})
 
 const showDelete = ref(false)
 const deleteTarget = ref<Card | null>(null)
@@ -101,18 +114,31 @@ const filterNoRumah = ref('')
 const filterStatus = ref('')
 
 const filteredCards = computed(() => {
-  const q = filterQuery.value.trim().toLowerCase()
-  return cards.value.filter((c) => {
-    if (q) {
-      const hay = `${c.uid} ${c.label_a || ''} ${c.label_b || ''} ${c.blok || ''} ${c.no_rumah || ''}`.toLowerCase()
-      if (!hay.includes(q)) return false
-    }
+    const q = filterQuery.value.trim().toLowerCase()
+    return cards.value.filter((c) => {
+      if (q) {
+        let label10Digit = ''
+        try {
+          label10Digit = uidToLabel10Digit(BigInt(c.uid))
+        } catch {
+          /* keep empty */
+        }
+        const blokNoRumah = `${c.blok || ''}/${c.no_rumah || ''}`
+        const hay = `${c.uid} ${label10Digit} ${c.label_a || ''} ${c.label_b || ''} ${c.blok || ''} ${c.no_rumah || ''} ${blokNoRumah}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
     if (filterBlok.value && (c.blok || '').toLowerCase() !== filterBlok.value.trim().toLowerCase()) return false
     if (filterNoRumah.value && (c.no_rumah || '').toLowerCase() !== filterNoRumah.value.trim().toLowerCase()) return false
     if (filterStatus.value && c.card_status !== filterStatus.value) return false
     return true
   })
 })
+
+const {
+  sortedData: sortedCards,
+  toggleSort: toggleCardSort,
+  getSortIcon: getCardSortIcon,
+} = useTableSort(filteredCards)
 
 async function pullFromApi() {
   if (!CARD_LIST_URL) {
@@ -205,11 +231,46 @@ function residentName(id: string | null) {
   return id ? residents.value[id] ?? '—' : '—'
 }
 
+/** Get the combined label string for a card's UID. */
+function cardLabelCombined(c: Card): string {
+  try {
+    return formatLabelCombined(BigInt(c.uid))
+  } catch {
+    return '—'
+  }
+}
+
+/** Decode 10-digit label → UID, Label A, Label B */
+function decodeLabel() {
+  if (!isValidLabel10Digit(label10Digit.value)) {
+    notify('Label harus berupa 10 angka.', 'error')
+    return
+  }
+  const uidBig = labelToUid(label10Digit.value)
+  const a = uidToLabelA(uidBig)
+  const b = uidToLabelB(uidBig)
+  uid.value = uidBig.toString()
+  labelA.value = a.toString()
+  labelB.value = b.toString()
+}
+
+/** Watcher: auto-decode saat user selesai ketik label */
+watch(label10Digit, (newVal) => {
+  if (isValidLabel10Digit(newVal)) {
+    decodeLabel()
+  } else {
+    uid.value = ''
+    labelA.value = ''
+    labelB.value = ''
+  }
+})
+
 function openAdd() {
   addTab.value = 'manual'
   uid.value = ''
   labelA.value = ''
   labelB.value = ''
+  label10Digit.value = ''
   blokManual.value = ''
   noRumahManual.value = ''
   uploadText.value = ''
@@ -465,32 +526,38 @@ onMounted(load)
             </select>
           </div>
         </div>
-        <p v-if="filteredCards.length !== cards.length" class="text-xs text-slate-500 mt-2">{{ filteredCards.length }} dari {{ cards.length }} kartu ditampilkan.</p>
+        <p v-if="sortedCards.length !== cards.length" class="text-xs text-slate-500 mt-2">{{ sortedCards.length }} dari {{ cards.length }} kartu ditampilkan.</p>
       </div>
 
-      <div v-if="cards.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
+<div v-if="cards.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
-            <th class="px-4 py-3 font-medium">UID</th>
-            <th class="px-4 py-3 font-medium">Label A</th>
-            <th class="px-4 py-3 font-medium">Label B</th>
-            <th class="px-4 py-3 font-medium">Blok</th>
-            <th class="px-4 py-3 font-medium">No Rumah</th>
-            <th class="px-4 py-3 font-medium">Penghuni</th>
-            <th class="px-4 py-3 font-medium">Status</th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCardSort('uid')">
+              <div class="flex items-center gap-1">UID <span class="text-xs">{{ getCardSortIcon('uid') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCardSort('label_a')">
+              <div class="flex items-center gap-1">Label Kartu <span class="text-xs">{{ getCardSortIcon('label_a') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCardSort('blok')">
+              <div class="flex items-center gap-1">Blok <span class="text-xs">{{ getCardSortIcon('blok') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCardSort('resident_id')">
+              <div class="flex items-center gap-1">Penghuni <span class="text-xs">{{ getCardSortIcon('resident_id') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCardSort('card_status')">
+              <div class="flex items-center gap-1">Status <span class="textxs">{{ getCardSortIcon('card_status') }}</span></div>
+            </th>
             <th class="px-4 py-3 font-medium">Status Gate</th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
         </thead>
-<tbody class="divide-y divide-slate-100">
-           <tr v-for="c in filteredCards" :key="c.id">
+        <tbody class="divide-y divide-slate-100">
+           <tr v-for="c in sortedCards" :key="c.id">
             <td class="px-4 py-3 font-mono">{{ c.uid }}</td>
-            <td class="px-4 py-3">{{ c.label_a || '—' }}</td>
-            <td class="px-4 py-3">{{ c.label_b || '—' }}</td>
-            <td class="px-4 py-3">{{ c.blok || '—' }}</td>
-            <td class="px-4 py-3">{{ c.no_rumah || '—' }}</td>
-            <td class="px-4 py-3">{{ residentName(c.resident_id) }}</td>
+            <td class="px-4 py-3 font-mono text-xs">{{ cardLabelCombined(c) }}</td>
+            <td class="px-4 py-3 text-xs">{{ (c.blok || '—') + '/' + (c.no_rumah || '—') }}</td>
+            <td class="px-4 py-3 text-xs">{{ residentName(c.resident_id) }}</td>
             <td class="px-4 py-3">
               <span class="inline-block px-2 py-0.5 rounded-full text-xs" :class="{
                 'bg-emerald-100 text-emerald-700': c.card_status === 'Aktif',
@@ -512,8 +579,8 @@ onMounted(load)
       </table>
     </div>
 
-<div v-if="filteredCards.length" class="md:hidden space-y-3">
-       <div v-for="c in filteredCards" :key="c.id" class="bg-white rounded border border-slate-200 p-4">
+<div v-if="sortedCards.length" class="md:hidden space-y-3">
+       <div v-for="c in sortedCards" :key="c.id" class="bg-white rounded border border-slate-200 p-4">
         <div class="flex items-start justify-between gap-3 mb-2">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
@@ -524,8 +591,8 @@ onMounted(load)
                 'bg-rose-100 text-rose-700': c.card_status === 'Hilang',
               }">{{ c.card_status }}</span>
             </div>
-            <p class="text-xs text-slate-500">A: {{ c.label_a || '—' }} · B: {{ c.label_b || '—' }}</p>
-            <p class="text-xs text-slate-500">Blok: {{ c.blok || '—' }} · No Rumah: {{ c.no_rumah || '—' }}</p>
+            <p class="text-xs text-slate-500 font-mono">{{ cardLabelCombined(c) }}</p>
+            <p class="text-xs text-slate-500">Blok: {{ (c.blok || '—') + '/' + (c.no_rumah || '—') }}</p>
             <p class="text-xs text-slate-500 mt-0.5">Penghuni: {{ residentName(c.resident_id) }}</p>
             <p class="text-xs mt-1">
               <span v-if="gateStatusFor(c)" class="inline-block px-2 py-0.5 rounded-full text-xs" :class="gateStatusClass(gateStatusFor(c)!.status)">Gate: {{ gateStatusLabel(gateStatusFor(c)!.status) }}</span>
@@ -548,17 +615,23 @@ onMounted(load)
 
       <div v-if="addTab === 'manual'" class="space-y-3">
         <div>
-          <label class="block text-sm font-medium mb-1">UID Kartu</label>
-          <input v-model="uid" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="56018067" />
-          <p v-if="uidDuplicate" class="mt-1 text-xs text-rose-600">UID ini sudah terdaftar — gunakan UID lain.</p>
+          <label class="block text-sm font-medium mb-1">Label 10 Digit</label>
+          <input v-model="label10Digit" class="w-full rounded border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="0011665379" />
+          <p class="mt-1 text-xs text-slate-400">Masukkan 10 angka → UID, Label A, Label B diisi otomatis.</p>
         </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Label A</label>
-          <input v-model="labelA" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="171" />
-        </div>
-        <div>
-          <label class="block text-sm font-medium mb-1">Label B</label>
-          <input v-model="labelB" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" placeholder="25161" />
+        <div v-if="uid" class="mt-3 space-y-3">
+          <div>
+            <label class="block text-sm font-medium mb-1">UID (auto)</label>
+            <input :value="uid" readonly class="w-full rounded border border-slate-200 px-3 py-2 text-sm bg-slate-50 font-mono" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Label A (auto)</label>
+            <input :value="labelA" readonly class="w-full rounded border border-slate-200 px-3 py-2 text-sm bg-slate-50" />
+          </div>
+          <div>
+            <label class="block text-sm font-medium mb-1">Label B (auto)</label>
+            <input :value="labelB" readonly class="w-full rounded border border-slate-200 px-3 py-2 text-sm bg-slate-50" />
+          </div>
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">Blok</label>
@@ -594,8 +667,11 @@ onMounted(load)
     </Modal>
 
     <Modal :open="showEdit" title="Edit Kartu" @close="showEdit = false">
-      <p class="text-xs text-slate-500 mb-3">UID tidak dapat diubah.</p>
       <div class="space-y-3">
+        <div>
+          <label class="block text-sm font-medium mb-1">UID</label>
+          <input :value="editTarget?.uid || ''" readonly class="w-full rounded border border-slate-200 px-3 py-2 text-sm bg-slate-50 font-mono" />
+        </div>
         <div>
           <label class="block text-sm font-medium mb-1">Label A</label>
           <input v-model="editLabelA" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
@@ -603,6 +679,10 @@ onMounted(load)
         <div>
           <label class="block text-sm font-medium mb-1">Label B</label>
           <input v-model="editLabelB" class="w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1">Label 10 Digit</label>
+          <input :value="editLabel10Digit" readonly class="w-full rounded border border-slate-200 px-3 py-2 text-sm bg-slate-50 font-mono" />
         </div>
         <div>
           <label class="block text-sm font-medium mb-1">Blok</label>

@@ -13,7 +13,9 @@ import {
 } from '@/lib/gate-command'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { formatDateTimeJakarta } from '@/lib/time'
+import { formatLabelCombined } from '@/lib/label-decode'
 import { useSettingsStore } from '@/stores/settings'
+import { useTableSort } from '@/composables/useTableSort'
 
 const commands = ref<GateCommand[]>([])
 const loading = ref(false)
@@ -34,6 +36,12 @@ const stats = computed(() => ({
   failed: commands.value.filter((c) => c.status === 'FAILED').length,
 }))
 
+const {
+  sortedData: sortedCommands,
+  toggleSort: toggleCommandSort,
+  getSortIcon: getCommandSortIcon,
+} = useTableSort(commands, 'created_at', 'desc')
+
 async function load() {
   loading.value = true
   const { data, error } = await supabase
@@ -47,6 +55,15 @@ async function load() {
     commands.value = (data as GateCommand[]) ?? []
   }
   loading.value = false
+}
+
+/** Combined label string (10-digit | A | B) derived from a command's UID. */
+function commandLabel(c: GateCommand): string {
+  try {
+    return formatLabelCombined(BigInt(c.uid))
+  } catch {
+    return '—'
+  }
 }
 
 function feedbackPesan(c: GateCommand): string {
@@ -201,26 +218,38 @@ onUnmounted(() => {
     </div>
 
     <div v-if="commands.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="w-full text-xs">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
-            <th class="px-4 py-3 font-medium">Waktu</th>
-            <th class="px-4 py-3 font-medium">Action</th>
-            <th class="px-4 py-3 font-medium">UID</th>
-            <th class="px-4 py-3 font-medium">Blok</th>
-            <th class="px-4 py-3 font-medium">No Rumah</th>
-            <th class="px-4 py-3 font-medium">Status</th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCommandSort('created_at')">
+              <div class="flex items-center gap-1">Waktu <span class="text-xs">{{ getCommandSortIcon('created_at') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCommandSort('action')">
+              <div class="flex items-center gap-1">Action <span class="text-xs">{{ getCommandSortIcon('action') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCommandSort('uid')">
+              <div class="flex items-center gap-1">UID <span class="text-xs">{{ getCommandSortIcon('uid') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCommandSort('uid')">
+              <div class="flex items-center gap-1">Label Kartu <span class="text-xs">{{ getCommandSortIcon('uid') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCommandSort('blok')">
+              <div class="flex items-center gap-1">Blok <span class="text-xs">{{ getCommandSortIcon('blok') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleCommandSort('status')">
+              <div class="flex items-center gap-1">Status <span class="text-xs">{{ getCommandSortIcon('status') }}</span></div>
+            </th>
             <th class="px-4 py-3 font-medium">Feedback / Error</th>
             <th class="px-4 py-3 font-medium text-right">Aksi</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-100">
-          <tr v-for="c in commands" :key="c.id">
+          <tr v-for="c in sortedCommands" :key="c.id">
             <td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">{{ formatDateTimeJakarta(c.created_at) }}</td>
             <td class="px-4 py-3 font-medium">{{ c.action }}</td>
             <td class="px-4 py-3 font-mono">{{ c.uid }}</td>
-            <td class="px-4 py-3">{{ c.blok || '—' }}</td>
-            <td class="px-4 py-3">{{ c.no_rumah || '—' }}</td>
+            <td class="px-4 py-3 font-mono text-xs">{{ commandLabel(c) }}</td>
+            <td class="px-4 py-3 text-xs">{{ (c.blok || '—') + '/' + (c.no_rumah || '—') }}</td>
             <td class="px-4 py-3">
               <span class="inline-block px-2 py-0.5 rounded-full text-xs" :class="gateStatusClass(c.status)">{{ gateStatusLabel(c.status) }}</span>
               <span v-if="c.attempt_count > 1" class="ml-1 text-xs text-slate-400">×{{ c.attempt_count }}</span>
@@ -241,8 +270,8 @@ onUnmounted(() => {
       </table>
     </div>
 
-    <div v-if="commands.length" class="md:hidden space-y-3">
-      <div v-for="c in commands" :key="c.id" class="bg-white rounded border border-slate-200 p-4">
+    <div v-if="sortedCommands.length" class="md:hidden space-y-3">
+      <div v-for="c in sortedCommands" :key="c.id" class="bg-white rounded border border-slate-200 p-4">
         <div class="flex items-center justify-between mb-1">
           <span class="font-mono text-sm font-semibold">{{ c.uid }}</span>
           <span class="inline-block px-2 py-0.5 rounded-full text-xs" :class="gateStatusClass(c.status)">{{ gateStatusLabel(c.status) }}</span>

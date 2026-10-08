@@ -8,6 +8,7 @@ import { enqueueGateCommand } from '@/lib/gate-command'
 import { useSettingsStore } from '@/stores/settings'
 import Modal from '@/components/Modal.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
+import { useTableSort } from '@/composables/useTableSort'
 
 const residents = ref<Resident[]>([])
 const loading = ref(false)
@@ -29,6 +30,12 @@ const filteredResidents = computed(() => {
     return true
   })
 })
+
+const {
+  sortedData: sortedResidents,
+  toggleSort: toggleResidentSort,
+  getSortIcon: getResidentSortIcon,
+} = useTableSort(filteredResidents)
 
 const totalResidents = computed(() => residents.value.length)
 const activeResidents = computed(() => residents.value.filter((r) => r.status === 'Active').length)
@@ -271,20 +278,22 @@ onMounted(load)
         Belum ada data penghuni.
       </div>
 
-      <div v-if="residents.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
+<div v-if="residents.length" class="hidden md:block bg-white rounded border border-slate-200 overflow-x-auto">
       <table class="w-full text-sm">
         <thead class="bg-slate-50 text-left text-slate-500">
           <tr>
-            <th class="px-4 py-3 font-medium">Blok</th>
-            <th class="px-4 py-3 font-medium">Nama</th>
-            <th class="px-4 py-3 font-medium">Status</th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('blok')">
+              <div class="flex items-center gap-1">Blok (Penghuni) <span class="text-xs">{{ getResidentSortIcon('blok') }}</span></div>
+            </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('status')">
+              <div class="flex items-center gap-1">Status <span class="text-xs">{{ getResidentSortIcon('status') }}</span></div>
+            </th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
         </thead>
-<tbody class="divide-y divide-slate-100">
-           <tr v-for="r in filteredResidents" :key="r.id">
-            <td class="px-4 py-3">{{ r.blok }}</td>
-            <td class="px-4 py-3">{{ r.nama }}</td>
+        <tbody class="divide-y divide-slate-100">
+           <tr v-for="r in sortedResidents" :key="r.id">
+            <td class="px-4 py-3">{{ r.blok }} · {{ r.nama }}</td>
             <td class="px-4 py-3">
               <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-slate-100">{{ r.status }}</span>
             </td>
@@ -297,8 +306,8 @@ onMounted(load)
       </table>
     </div>
 
-<div v-if="filteredResidents.length" class="md:hidden space-y-3">
-       <div v-for="r in filteredResidents" :key="r.id" class="bg-white rounded border border-slate-200 p-4">
+<div v-if="sortedResidents.length" class="md:hidden space-y-3">
+       <div v-for="r in sortedResidents" :key="r.id" class="bg-white rounded border border-slate-200 p-4">
         <div class="flex items-start justify-between gap-3">
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
