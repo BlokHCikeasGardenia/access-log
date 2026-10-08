@@ -10,7 +10,11 @@ import Modal from '@/components/Modal.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { useTableSort } from '@/composables/useTableSort'
 
-const residents = ref<Resident[]>([])
+interface ResidentWithCardCount extends Resident {
+  card_count: number
+}
+
+const residents = ref<ResidentWithCardCount[]>([])
 const loading = ref(false)
 const settings = useSettingsStore()
 
@@ -68,14 +72,26 @@ const deleting = ref(false)
 
 async function load() {
   loading.value = true
-  const { data, error } = await supabase
-    .from('residents')
-    .select('*')
-    .order('blok')
-  if (error) {
-    notify(error.message, 'error')
+  const [{ data: residentsData, error: residentsError }, { data: cardsData }] = await Promise.all([
+    supabase.from('residents').select('*').order('blok'),
+    supabase.from('cards').select('resident_id'),
+  ])
+
+  if (residentsError) {
+    notify(residentsError.message, 'error')
   } else {
-    residents.value = (data as Resident[]) ?? []
+    // Count cards per resident
+    const cardCounts: Record<string, number> = {}
+    for (const card of (cardsData ?? []) as { resident_id: string | null }[]) {
+      if (card.resident_id) {
+        cardCounts[card.resident_id] = (cardCounts[card.resident_id] || 0) + 1
+      }
+    }
+
+    residents.value = ((residentsData as Resident[]) ?? []).map((r) => ({
+      ...r,
+      card_count: cardCounts[r.id] || 0,
+    }))
   }
   loading.value = false
 }
@@ -285,8 +301,11 @@ onMounted(load)
             <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('blok')">
               <div class="flex items-center gap-1">Blok (Penghuni) <span class="text-xs">{{ getResidentSortIcon('blok') }}</span></div>
             </th>
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('card_count')">
+              <div class="flex items-center gap-1">Total Kartu <span class="text-xs">{{ getResidentSortIcon('card_count') }}</span></div>
+            </th>
             <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('status')">
-              <div class="flex items-center gap-1">Status <span class="text-xs">{{ getResidentSortIcon('status') }}</span></div>
+              <div class="flex items-center gap-1">Status <span class="textxs">{{ getResidentSortIcon('status') }}</span></div>
             </th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
@@ -294,6 +313,7 @@ onMounted(load)
         <tbody class="divide-y divide-slate-100">
            <tr v-for="r in sortedResidents" :key="r.id">
             <td class="px-4 py-3">{{ r.blok }} · {{ r.nama }}</td>
+            <td class="px-4 py-3 text-center">{{ r.card_count }}</td>
             <td class="px-4 py-3">
               <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-slate-100">{{ r.status }}</span>
             </td>
@@ -313,6 +333,7 @@ onMounted(load)
             <div class="flex items-center gap-2 mb-1">
               <span class="font-semibold text-slate-800">{{ r.blok }}</span>
               <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-slate-100">{{ r.status }}</span>
+              <span class="inline-block px-2 py-0.5 rounded-full text-xs bg-emerald-100 text-emerald-700">{{ r.card_count }} kartu</span>
             </div>
             <p class="text-sm text-slate-600 truncate">{{ r.nama }}</p>
           </div>
