@@ -56,7 +56,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(sortedLogs.value.length 
 
 const pagedLogs = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value
-  return filteredLogs.value.slice(start, start + pageSize.value)
+  return sortedLogs.value.slice(start, start + pageSize.value)
 })
 
 // Date range controls (default: last 30 days up to today, in Jakarta timezone).
@@ -302,7 +302,7 @@ onMounted(async () => {
         </div>
       </div>
 
-      <div v-if="filteredLogs.length > pageSize" class="flex flex-col gap-2 pt-2">
+      <div v-if="sortedLogs.length > pageSize" class="flex flex-col gap-2 pt-2">
         <div class="flex gap-2">
           <button class="flex-1 px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px] text-sm" :disabled="currentPage === 1" @click="goToPage(1)">Awal</button>
           <button class="flex-1 px-3 py-2 rounded border border-slate-300 hover:bg-slate-100 disabled:opacity-50 min-h-[44px] text-sm" :disabled="currentPage === 1" @click="goToPage(currentPage - 1)">Prev</button>
