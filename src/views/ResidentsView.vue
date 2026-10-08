@@ -301,11 +301,11 @@ onMounted(load)
             <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('blok')">
               <div class="flex items-center gap-1">Blok (Penghuni) <span class="text-xs">{{ getResidentSortIcon('blok') }}</span></div>
             </th>
-            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('card_count')">
+            <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100 text-center" @click="toggleResidentSort('card_count')">
               <div class="flex items-center gap-1">Total Kartu <span class="text-xs">{{ getResidentSortIcon('card_count') }}</span></div>
             </th>
             <th class="px-4 py-3 font-medium cursor-pointer select-none hover:bg-slate-100" @click="toggleResidentSort('status')">
-              <div class="flex items-center gap-1">Status <span class="textxs">{{ getResidentSortIcon('status') }}</span></div>
+              <div class="flex items-center gap-1">Status <span class="text-xs">{{ getResidentSortIcon('status') }}</span></div>
             </th>
             <th class="px-4 py-3 font-medium text-right">Action</th>
           </tr>
