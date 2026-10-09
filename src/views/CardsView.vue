@@ -124,7 +124,8 @@ const filteredCards = computed(() => {
           /* keep empty */
         }
         const blokNoRumah = `${c.blok || ''}/${c.no_rumah || ''}`
-        const hay = `${c.uid} ${label10Digit} ${c.label_a || ''} ${c.label_b || ''} ${c.blok || ''} ${c.no_rumah || ''} ${blokNoRumah}`.toLowerCase()
+        const resident = residentName(c.resident_id)
+        const hay = `${c.uid} ${label10Digit} ${c.label_a || ''} ${c.label_b || ''} ${c.blok || ''} ${c.no_rumah || ''} ${blokNoRumah} ${resident}`.toLowerCase()
         if (!hay.includes(q)) return false
       }
     if (filterBlok.value && (c.blok || '').toLowerCase() !== filterBlok.value.trim().toLowerCase()) return false
