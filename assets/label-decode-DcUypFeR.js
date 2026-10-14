@@ -1,0 +1,1 @@
+const e=4294967296n,r=16777216n,c=65536n;function i(t){return t*128n%e/r}function s(t){return t*128n%e/256n%c}function u(t){const o=t*128n%e/256n;return String(o).padStart(10,"0")}function p(t){const n=u(t),o=i(t).toString().padStart(3,"0"),a=s(t).toString().padStart(5,"0");return`${n} | ${o} | ${a}`}export{p as f,u};
